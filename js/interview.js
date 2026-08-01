@@ -164,14 +164,14 @@ function renderVapiWidget() {
   widget.setAttribute("cta-button-text-color", "#F6F3EC");
   widget.setAttribute("start-button-text", "Start Interview");
   widget.setAttribute("end-button-text", "End Interview");
+  widget.setAttribute("show-transcript", "true");
   widget.setAttribute("title", "AI Interviewer");
-  // Temporarily testing without assistant-overrides to isolate the 400 error
-  // widget.setAttribute("assistant-overrides", JSON.stringify({
-  //   variableValues: {
-  //     dream_company: dreamSelection.company_name || "",
-  //     dream_role: dreamSelection.role_name || ""
-  //   }
-  // }));
+  widget.setAttribute("assistant-overrides", JSON.stringify({
+    variableValues: {
+      dream_company: dreamSelection.company_name || "",
+      dream_role: dreamSelection.role_name || ""
+    }
+  }));
 
   // Best-effort event hooks (widget-provided callbacks)
   widget.onVoiceStart = () => {
