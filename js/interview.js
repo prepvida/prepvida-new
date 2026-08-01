@@ -153,6 +153,14 @@ startBtn.addEventListener("click", async () => {
     endBtn.style.display = "inline-block";
   });
 
+  vapi.on("error", (err) => {
+    console.error("Vapi error:", err);
+    const message = err?.error?.message || err?.errorMsg || err?.message || "Unknown error";
+    callStatus.textContent = "Could not connect: " + message;
+    startBtn.style.display = "inline-block";
+    endBtn.style.display = "none";
+  });
+
   vapi.on("call-end", async () => {
     callStatus.textContent = "Interview ended. Your scoreboard will be emailed to you shortly.";
     endBtn.style.display = "none";
