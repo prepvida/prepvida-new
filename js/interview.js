@@ -16,6 +16,7 @@ const interviewSubtitle = document.getElementById("interview-subtitle");
 const creditsNote = document.getElementById("credits-note");
 const avatarCircle = document.getElementById("avatar-circle");
 const studentWebcam = document.getElementById("student-webcam");
+const webcamFallback = document.getElementById("webcam-fallback");
 const widgetContainer = document.getElementById("vapi-widget-container");
 
 let currentUser = null;
@@ -130,8 +131,10 @@ async function startWebcamPreview() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
     studentWebcam.srcObject = stream;
+    webcamFallback.style.display = "none";
   } catch (err) {
     console.warn("Webcam not available:", err);
+    webcamFallback.style.display = "block";
   }
 }
 

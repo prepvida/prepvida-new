@@ -406,6 +406,7 @@ button:focus-visible, .btn:focus-visible { outline: 2px solid var(--brass); outl
   position: relative;
   width: 40%;
   max-width: 140px;
+  aspect-ratio: 1 / 1;
 }
 
 .avatar-circle svg {
