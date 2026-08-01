@@ -47,13 +47,17 @@
 
     <div id="credits-note" class="status-msg" style="display:none; background:#EAF3EE; color:#2F6F4E;"></div>
 
-    <!-- The Vapi widget renders its own Start/End Call button here -->
-    <div id="vapi-widget-container" style="margin-top:1rem;"></div>
+    <div id="transcript-box" style="display:none; background:#fff; border:1px solid var(--line); border-radius:4px; padding:1rem; margin-top:1rem; max-height:220px; overflow-y:auto; font-size:0.88rem; line-height:1.6;"></div>
+
+    <div style="display:flex; gap:1rem; margin-top:1rem;">
+      <button id="start-call-btn" class="btn-brass">Start Interview</button>
+      <button id="end-call-btn" class="btn" style="display:none;">End Interview</button>
+    </div>
   </div>
 
   <div class="card" style="margin-top:1.5rem;">
     <h3>How this works</h3>
-    <p>Use the button below to begin speaking with the AI interviewer. When you're done, end the call — your scoreboard will be emailed to you automatically once it's ready.</p>
+    <p>Click Start Interview to begin speaking with the AI interviewer. When you're done, end the call — your scoreboard will be emailed to you automatically once it's ready.</p>
   </div>
 </main>
 
@@ -72,6 +76,10 @@
 
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script src="js/supabase-config.js"></script>
+
+<!-- Vapi Web SDK — reliable plain-browser build (the official widget
+     package has a known bug in its request payload) -->
+<script src="https://cdn.jsdelivr.net/gh/balacodeio/Vapi-Web-UMD@latest/dist/latest/vapi-web-bundle.min.js"></script>
 
 <script src="js/interview.js"></script>
 </body>

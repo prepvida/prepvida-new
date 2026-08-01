@@ -1,15 +1,16 @@
 // =====================================================================
-// INTERVIEW PAGE LOGIC — Vapi.ai official widget + plan credit enforcement
-// Uses the <vapi-widget> custom element (loaded via widget.umd.js in
-// interview.html) instead of manually driving the Vapi class — this is
-// Vapi's own officially maintained, plain-HTML-friendly integration.
+// INTERVIEW PAGE LOGIC — Vapi.ai Web SDK + plan credit enforcement
+// Uses the Vapi class directly (via a plain-browser UMD build) instead
+// of the official widget component, which has a known bug that breaks
+// assistant-overrides (personalization) requests.
 // =====================================================================
 
-// FILL THESE IN from your Vapi.ai dashboard (vapi.ai -> API Keys):
 const VAPI_PUBLIC_KEY = "f669166b-f926-4d68-90a3-0ed7461ecaef";
 const VAPI_ASSISTANT_ID = "6b84ec28-24b9-4478-b3e6-0604a9093d73";
 // =====================================================================
 
+const startBtn = document.getElementById("start-call-btn");
+const endBtn = document.getElementById("end-call-btn");
 const callStatus = document.getElementById("call-status");
 const interviewTitle = document.getElementById("interview-title");
 const interviewSubtitle = document.getElementById("interview-subtitle");
@@ -17,12 +18,13 @@ const creditsNote = document.getElementById("credits-note");
 const avatarCircle = document.getElementById("avatar-circle");
 const studentWebcam = document.getElementById("student-webcam");
 const webcamFallback = document.getElementById("webcam-fallback");
-const widgetContainer = document.getElementById("vapi-widget-container");
+const transcriptBox = document.getElementById("transcript-box");
 
 let currentUser = null;
 let dreamSelection = null;
 let currentSessionId = null;
 let activeSubscription = null;
+let vapi = null;
 
 async function requireLogin() {
   const { data: { session } } = await supabaseClient.auth.getSession();
@@ -46,6 +48,7 @@ async function loadDreamSelection() {
   if (error || !data) {
     interviewTitle.textContent = "No dream company/role selected yet";
     interviewSubtitle.innerHTML = 'Please <a href="dream-selection.html">choose your dream company and role</a> first.';
+    startBtn.disabled = true;
     return null;
   }
 
@@ -67,12 +70,14 @@ async function loadSubscriptionCredits() {
   if (error || !data) {
     creditsNote.innerHTML = 'You don\'t have an active plan yet. <a href="pricing.html">Choose a plan</a> to start interviewing.';
     creditsNote.style.display = "block";
+    startBtn.disabled = true;
     return null;
   }
 
   if (data.credits_remaining <= 0) {
     creditsNote.innerHTML = `You've used all your interviews on the ${data.subscription_plans?.name || "current"} plan. <a href="pricing.html">Upgrade or renew</a> to continue.`;
     creditsNote.style.display = "block";
+    startBtn.disabled = true;
     return null;
   }
 
@@ -145,88 +150,88 @@ function stopWebcamPreview() {
   }
 }
 
-// Renders the official Vapi widget as a plain custom element — this
-// handles the actual call connection reliably, no manual SDK wiring.
-// IMPORTANT: the widget script scans the page for <vapi-widget> tags
-// ONCE when it loads, so the element must already exist in the DOM
-// BEFORE the script is added — hence we load the script dynamically
-// here, after inserting the element, rather than via a static <script>
-// tag in the HTML head.
-function renderVapiWidget() {
-  const widget = document.createElement("vapi-widget");
-  widget.setAttribute("public-key", VAPI_PUBLIC_KEY);
-  widget.setAttribute("assistant-id", VAPI_ASSISTANT_ID);
-  widget.setAttribute("mode", "voice");
-  widget.setAttribute("size", "full");
-  widget.setAttribute("theme", "light");
-  widget.setAttribute("accent-color", "#C79A3E");
-  widget.setAttribute("cta-button-color", "#10192B");
-  widget.setAttribute("cta-button-text-color", "#F6F3EC");
-  widget.setAttribute("start-button-text", "Start Interview");
-  widget.setAttribute("end-button-text", "End Interview");
-  widget.setAttribute("show-transcript", "true");
-  widget.setAttribute("title", "AI Interviewer");
-  widget.setAttribute("assistant-overrides", JSON.stringify({
+function addTranscriptLine(speaker, text) {
+  transcriptBox.style.display = "block";
+  const line = document.createElement("div");
+  line.style.marginBottom = "0.5rem";
+  line.innerHTML = `<strong>${speaker}:</strong> ${text}`;
+  transcriptBox.appendChild(line);
+  transcriptBox.scrollTop = transcriptBox.scrollHeight;
+}
+
+startBtn.addEventListener("click", async () => {
+  if (!dreamSelection || !activeSubscription) return;
+
+  const deducted = await deductOneCredit();
+  if (!deducted) {
+    callStatus.textContent = "Could not start — no interview credits available.";
+    return;
+  }
+
+  await startWebcamPreview();
+
+  currentSessionId = await createSessionRow();
+  callStatus.textContent = "Connecting to your AI interviewer...";
+  creditsNote.textContent = `${activeSubscription.credits_remaining} interview${activeSubscription.credits_remaining === 1 ? "" : "s"} remaining on your plan.`;
+
+  vapi = new Vapi(VAPI_PUBLIC_KEY);
+
+  vapi.on("call-start", () => {
+    callStatus.textContent = "Interview in progress. Speak naturally.";
+    startBtn.style.display = "none";
+    endBtn.style.display = "inline-block";
+  });
+
+  vapi.on("speech-start", () => {
+    avatarCircle.classList.add("speaking");
+  });
+  vapi.on("speech-end", () => {
+    avatarCircle.classList.remove("speaking");
+  });
+
+  // Live transcript, if the SDK provides message events
+  vapi.on("message", (msg) => {
+    if (msg?.type === "transcript" && msg?.transcriptType === "final") {
+      const speaker = msg.role === "assistant" ? "Interviewer" : "You";
+      addTranscriptLine(speaker, msg.transcript);
+    }
+  });
+
+  vapi.on("error", (err) => {
+    console.error("Vapi error:", err);
+    const message = err?.error?.message || err?.errorMsg || err?.message || "Unknown error";
+    callStatus.textContent = "Could not connect: " + message;
+    startBtn.style.display = "inline-block";
+    endBtn.style.display = "none";
+  });
+
+  vapi.on("call-end", async () => {
+    callStatus.textContent = "Interview ended. Your scoreboard will be emailed to you shortly.";
+    endBtn.style.display = "none";
+    startBtn.style.display = activeSubscription.credits_remaining > 0 ? "inline-block" : "none";
+    avatarCircle.classList.remove("speaking");
+    stopWebcamPreview();
+    await markSessionCompleted();
+    // NOTE: actual scoring happens via Vapi.ai's Analysis Plan + a
+    // webhook (e.g. to Zapier) that emails the student. See README.
+  });
+
+  vapi.start(VAPI_ASSISTANT_ID, {
     variableValues: {
       dream_company: dreamSelection.company_name || "",
       dream_role: dreamSelection.role_name || ""
     }
-  }));
+  });
+});
 
-  // Best-effort event hooks (widget-provided callbacks)
-  widget.onVoiceStart = () => {
-    callStatus.textContent = "Interview in progress. Speak naturally.";
-    avatarCircle.classList.add("speaking");
-  };
-
-  widget.onVoiceEnd = async () => {
-    callStatus.textContent = "Interview ended. Your scoreboard will be emailed to you shortly.";
-    avatarCircle.classList.remove("speaking");
-    stopWebcamPreview();
-    await markSessionCompleted();
-  };
-
-  widget.onError = (err) => {
-    console.error("Vapi widget error:", err);
-    callStatus.textContent = "Could not connect: " + (err?.message || "Unknown error");
-  };
-
-  widgetContainer.innerHTML = "";
-  widgetContainer.appendChild(widget);
-
-  // NOW load the widget script — after the element is already in the DOM
-  const script = document.createElement("script");
-  script.src = "https://unpkg.com/@vapi-ai/client-sdk-react/dist/embed/widget.umd.js";
-  script.onload = () => {
-    callStatus.textContent = "Ready — click Start Interview below.";
-  };
-  script.onerror = () => {
-    callStatus.textContent = "Could not load the interview widget. Please refresh and try again.";
-  };
-  document.body.appendChild(script);
-}
+endBtn.addEventListener("click", () => {
+  if (vapi) vapi.stop();
+});
 
 (async () => {
   currentUser = await requireLogin();
   if (!currentUser) return;
-
   dreamSelection = await loadDreamSelection();
   activeSubscription = await loadSubscriptionCredits();
-
-  if (!dreamSelection || !activeSubscription) {
-    callStatus.textContent = "Cannot start yet — see message above.";
-    return;
-  }
-
-  // Reserve this interview: deduct credit, log session, then show the widget
-  const deducted = await deductOneCredit();
-  if (!deducted) {
-    callStatus.textContent = "Could not reserve an interview slot. Please refresh and try again.";
-    return;
-  }
-  currentSessionId = await createSessionRow();
-  creditsNote.textContent = `${activeSubscription.credits_remaining} interview${activeSubscription.credits_remaining === 1 ? "" : "s"} remaining on your plan.`;
-
-  await startWebcamPreview();
-  renderVapiWidget();
+  if (!activeSubscription) startBtn.disabled = true;
 })();
