@@ -4,7 +4,9 @@
 // lets us properly import the Vapi library — a plain <script> tag
 // cannot load it correctly.
 // =====================================================================
-import Vapi from "https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/+esm";
+import * as VapiModule from "https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/+esm";
+const Vapi = VapiModule.default || VapiModule.Vapi || VapiModule;
+console.log("Vapi module loaded:", VapiModule, "Using constructor:", Vapi);
 
 // FILL THESE IN from your Vapi.ai dashboard (vapi.ai -> API Keys):
 const VAPI_PUBLIC_KEY = "f669166b-f926-4d68-90a3-0ed7461ecaef";
