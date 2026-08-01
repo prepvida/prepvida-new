@@ -1,9 +1,10 @@
 // =====================================================================
-// DREAM COMPANY / ROLE SELECTION LOGIC
+// DREAM COMPANY / ROLE — free text, any company, any role
 // =====================================================================
 
-const companySelect = document.getElementById("company-select");
-const roleSelect = document.getElementById("role-select");
+const companyInput = document.getElementById("company-input");
+const companySuggestions = document.getElementById("company-suggestions");
+const roleInput = document.getElementById("role-input");
 const dreamForm = document.getElementById("dream-form");
 const statusMessage = document.getElementById("status-message");
 
@@ -23,63 +24,35 @@ async function requireLogin() {
   return session.user;
 }
 
-async function loadCompanies() {
-  const { data: companies, error } = await supabaseClient
-    .from("companies")
-    .select("id, name")
-    .eq("is_active", true)
-    .order("name");
+// Loads past company names typed by anyone (just for handy autocomplete
+// suggestions) — students are never limited to only these.
+async function loadSuggestions() {
+  const { data, error } = await supabaseClient
+    .from("dream_selections")
+    .select("company_name")
+    .not("company_name", "is", null)
+    .limit(200);
 
-  if (error) {
-    companySelect.innerHTML = `<option value="">Could not load companies</option>`;
-    return;
-  }
+  if (error || !data) return;
 
-  companySelect.innerHTML =
-    `<option value="">Select a company</option>` +
-    companies.map((c) => `<option value="${c.id}">${c.name}</option>`).join("");
+  const uniqueNames = [...new Set(data.map((d) => d.company_name).filter(Boolean))];
+  companySuggestions.innerHTML = uniqueNames.map((name) => `<option value="${name}"></option>`).join("");
 }
-
-async function loadRolesForCompany(companyId) {
-  if (!companyId) {
-    roleSelect.innerHTML = `<option value="">Select a company first</option>`;
-    return;
-  }
-  const { data: roles, error } = await supabaseClient
-    .from("roles")
-    .select("id, role_name")
-    .eq("company_id", companyId)
-    .eq("is_active", true)
-    .order("role_name");
-
-  if (error || !roles.length) {
-    roleSelect.innerHTML = `<option value="">No roles found for this company yet</option>`;
-    return;
-  }
-
-  roleSelect.innerHTML =
-    `<option value="">Select a role</option>` +
-    roles.map((r) => `<option value="${r.id}">${r.role_name}</option>`).join("");
-}
-
-companySelect.addEventListener("change", () => {
-  loadRolesForCompany(companySelect.value);
-});
 
 dreamForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   if (!currentUser) return;
 
-  const companyId = companySelect.value;
-  const roleId = roleSelect.value;
+  const companyName = companyInput.value.trim();
+  const roleName = roleInput.value.trim();
   const experienceLevel = document.getElementById("experience-select").value;
 
-  if (!companyId || !roleId) {
-    showStatus("Please select both a company and a role.", "error");
+  if (!companyName || !roleName) {
+    showStatus("Please enter both a company and a role.", "error");
     return;
   }
 
-  // Deactivate previous selections, then insert the new active one
+  // Deactivate any previous selection, then save this one as active
   await supabaseClient
     .from("dream_selections")
     .update({ is_active: false })
@@ -87,14 +60,15 @@ dreamForm.addEventListener("submit", async (e) => {
 
   const { error } = await supabaseClient.from("dream_selections").insert({
     user_id: currentUser.id,
-    company_id: companyId,
-    role_id: roleId,
+    company_name: companyName,
+    role_name: roleName,
     experience_level: experienceLevel,
     is_active: true
   });
 
   if (error) {
     showStatus("Could not save your selection. Please try again.", "error");
+    console.error(error);
     return;
   }
 
@@ -103,5 +77,5 @@ dreamForm.addEventListener("submit", async (e) => {
 
 (async () => {
   currentUser = await requireLogin();
-  if (currentUser) await loadCompanies();
+  if (currentUser) await loadSuggestions();
 })();
