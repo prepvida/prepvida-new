@@ -20,8 +20,27 @@
   <h1 id="interview-title">Preparing your interview...</h1>
   <p id="interview-subtitle">Interviewing for your selected dream company and role.</p>
 
-  <div class="card" style="margin-top:2rem;">
-    <div id="call-status" class="status-msg" style="display:block; background:#EBE6D9; color:#57606F;">
+  <div class="card" style="margin-top:2rem; padding:1.5rem;">
+    <div class="interview-stage">
+      <div class="video-panel">
+        <div class="avatar-circle" id="avatar-circle">
+          <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="60" cy="60" r="58" fill="#10192B"/>
+            <circle cx="60" cy="46" r="20" fill="#F6F3EC"/>
+            <path d="M20 108c0-24 18-40 40-40s40 16 40 40" fill="#F6F3EC"/>
+          </svg>
+          <div class="pulse-ring"></div>
+        </div>
+        <div class="video-panel-label">AI Interviewer</div>
+      </div>
+
+      <div class="video-panel">
+        <video id="student-webcam" autoplay muted playsinline></video>
+        <div class="video-panel-label">You</div>
+      </div>
+    </div>
+
+    <div id="call-status" class="status-msg" style="display:block; background:#EBE6D9; color:#57606F; margin-top:1.5rem;">
       Not started yet.
     </div>
 

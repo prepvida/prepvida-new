@@ -17,6 +17,8 @@ const callStatus = document.getElementById("call-status");
 const interviewTitle = document.getElementById("interview-title");
 const interviewSubtitle = document.getElementById("interview-subtitle");
 const creditsNote = document.getElementById("credits-note");
+const avatarCircle = document.getElementById("avatar-circle");
+const studentWebcam = document.getElementById("student-webcam");
 
 let currentUser = null;
 let dreamSelection = null;
@@ -141,6 +143,16 @@ startBtn.addEventListener("click", async () => {
     return;
   }
 
+  // Show the student's own webcam (this is what makes it feel like a real
+  // video interview, without paying for AI-generated avatar video)
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    studentWebcam.srcObject = stream;
+  } catch (err) {
+    console.warn("Webcam not available:", err);
+    // Not fatal — the interview can continue on audio alone
+  }
+
   currentSessionId = await createSessionRow();
   callStatus.textContent = "Connecting to your AI interviewer...";
   creditsNote.textContent = `${activeSubscription.credits_remaining} interview${activeSubscription.credits_remaining === 1 ? "" : "s"} remaining on your plan.`;
@@ -151,6 +163,14 @@ startBtn.addEventListener("click", async () => {
     callStatus.textContent = "Interview in progress. Speak naturally.";
     startBtn.style.display = "none";
     endBtn.style.display = "inline-block";
+  });
+
+  // Pulse the avatar's ring while the AI is actually speaking
+  vapi.on("speech-start", () => {
+    avatarCircle.classList.add("speaking");
+  });
+  vapi.on("speech-end", () => {
+    avatarCircle.classList.remove("speaking");
   });
 
   vapi.on("error", (err) => {
@@ -165,6 +185,11 @@ startBtn.addEventListener("click", async () => {
     callStatus.textContent = "Interview ended. Your scoreboard will be emailed to you shortly.";
     endBtn.style.display = "none";
     startBtn.style.display = activeSubscription.credits_remaining > 0 ? "inline-block" : "none";
+    avatarCircle.classList.remove("speaking");
+    if (studentWebcam.srcObject) {
+      studentWebcam.srcObject.getTracks().forEach((track) => track.stop());
+      studentWebcam.srcObject = null;
+    }
     await markSessionCompleted();
     // NOTE: actual scoring happens via Vapi.ai's Analysis Plan + a
     // webhook (e.g. to Zapier) that emails the student. See README.
