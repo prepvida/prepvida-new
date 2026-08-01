@@ -144,6 +144,11 @@ function stopWebcamPreview() {
 
 // Renders the official Vapi widget as a plain custom element — this
 // handles the actual call connection reliably, no manual SDK wiring.
+// IMPORTANT: the widget script scans the page for <vapi-widget> tags
+// ONCE when it loads, so the element must already exist in the DOM
+// BEFORE the script is added — hence we load the script dynamically
+// here, after inserting the element, rather than via a static <script>
+// tag in the HTML head.
 function renderVapiWidget() {
   const widget = document.createElement("vapi-widget");
   widget.setAttribute("public-key", VAPI_PUBLIC_KEY);
@@ -157,14 +162,12 @@ function renderVapiWidget() {
   widget.setAttribute("start-button-text", "Start Interview");
   widget.setAttribute("end-button-text", "End Interview");
   widget.setAttribute("title", "AI Interviewer");
-
-  // Pass the student's dream company/role into the assistant as variables
-  widget.assistantOverrides = {
+  widget.setAttribute("assistant-overrides", JSON.stringify({
     variableValues: {
       dream_company: dreamSelection.company_name || "",
       dream_role: dreamSelection.role_name || ""
     }
-  };
+  }));
 
   // Best-effort event hooks (widget-provided callbacks)
   widget.onVoiceStart = () => {
@@ -187,7 +190,16 @@ function renderVapiWidget() {
   widgetContainer.innerHTML = "";
   widgetContainer.appendChild(widget);
 
-  callStatus.textContent = "Ready — click Start Interview below.";
+  // NOW load the widget script — after the element is already in the DOM
+  const script = document.createElement("script");
+  script.src = "https://unpkg.com/@vapi-ai/client-sdk-react/dist/embed/widget.umd.js";
+  script.onload = () => {
+    callStatus.textContent = "Ready — click Start Interview below.";
+  };
+  script.onerror = () => {
+    callStatus.textContent = "Could not load the interview widget. Please refresh and try again.";
+  };
+  document.body.appendChild(script);
 }
 
 (async () => {
