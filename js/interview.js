@@ -1,9 +1,14 @@
 // =====================================================================
 // INTERVIEW PAGE LOGIC — Vapi.ai integration + plan credit enforcement
+// This file loads as an ES module (see interview.html), which is what
+// lets us properly import the Vapi library — a plain <script> tag
+// cannot load it correctly.
 // =====================================================================
+import Vapi from "https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/+esm";
+
 // FILL THESE IN from your Vapi.ai dashboard (vapi.ai -> API Keys):
-const VAPI_PUBLIC_KEY = "PASTE_YOUR_VAPI_PUBLIC_KEY_HERE";
-const VAPI_ASSISTANT_ID = "PASTE_YOUR_VAPI_ASSISTANT_ID_HERE";
+const VAPI_PUBLIC_KEY = "f669166b-f926-4d68-90a3-0ed7461ecaef";
+const VAPI_ASSISTANT_ID = "a31e5c43-af58-4cf2-8d01-eeae23877f5c";
 // =====================================================================
 
 const startBtn = document.getElementById("start-call-btn");
@@ -140,7 +145,7 @@ startBtn.addEventListener("click", async () => {
   callStatus.textContent = "Connecting to your AI interviewer...";
   creditsNote.textContent = `${activeSubscription.credits_remaining} interview${activeSubscription.credits_remaining === 1 ? "" : "s"} remaining on your plan.`;
 
-  vapi = new window.Vapi(VAPI_PUBLIC_KEY);
+  vapi = new Vapi(VAPI_PUBLIC_KEY);
 
   vapi.on("call-start", () => {
     callStatus.textContent = "Interview in progress. Speak naturally.";
