@@ -41,20 +41,18 @@
     </div>
 
     <div id="call-status" class="status-msg" style="display:block; background:#EBE6D9; color:#57606F; margin-top:1.5rem;">
-      Not started yet.
+      Checking your plan...
     </div>
 
     <div id="credits-note" class="status-msg" style="display:none; background:#EAF3EE; color:#2F6F4E;"></div>
 
-    <div style="display:flex; gap:1rem; margin-top:1rem;">
-      <button id="start-call-btn" class="btn-brass">Start Interview</button>
-      <button id="end-call-btn" class="btn" style="display:none;">End Interview</button>
-    </div>
+    <!-- The Vapi widget renders its own Start/End Call button here -->
+    <div id="vapi-widget-container" style="margin-top:1rem;"></div>
   </div>
 
   <div class="card" style="margin-top:1.5rem;">
     <h3>How this works</h3>
-    <p>Click "Start Interview" to begin speaking with the AI interviewer. When you're done, click "End Interview" — your scoreboard will be emailed to you automatically once it's ready.</p>
+    <p>Use the button below to begin speaking with the AI interviewer. When you're done, end the call — your scoreboard will be emailed to you automatically once it's ready.</p>
   </div>
 </main>
 
@@ -74,6 +72,9 @@
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script src="js/supabase-config.js"></script>
 
-<script type="module" src="js/interview.js"></script>
+<!-- Vapi's officially maintained embeddable widget — no bundler needed -->
+<script src="https://unpkg.com/@vapi-ai/client-sdk-react/dist/embed/widget.umd.js"></script>
+
+<script src="js/interview.js"></script>
 </body>
 </html>

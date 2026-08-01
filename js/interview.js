@@ -1,32 +1,27 @@
 // =====================================================================
-// INTERVIEW PAGE LOGIC — Vapi.ai integration + plan credit enforcement
-// This file loads as an ES module (see interview.html), which is what
-// lets us properly import the Vapi library — a plain <script> tag
-// cannot load it correctly.
+// INTERVIEW PAGE LOGIC — Vapi.ai official widget + plan credit enforcement
+// Uses the <vapi-widget> custom element (loaded via widget.umd.js in
+// interview.html) instead of manually driving the Vapi class — this is
+// Vapi's own officially maintained, plain-HTML-friendly integration.
 // =====================================================================
-import * as VapiModule from "https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/+esm";
-const Vapi = VapiModule.default || VapiModule.Vapi || VapiModule;
-console.log("Vapi module loaded:", VapiModule, "Using constructor:", Vapi);
 
 // FILL THESE IN from your Vapi.ai dashboard (vapi.ai -> API Keys):
 const VAPI_PUBLIC_KEY = "f669166b-f926-4d68-90a3-0ed7461ecaef";
 const VAPI_ASSISTANT_ID = "a31e5c43-af58-4cf2-8d01-eeae23877f5c";
 // =====================================================================
 
-const startBtn = document.getElementById("start-call-btn");
-const endBtn = document.getElementById("end-call-btn");
 const callStatus = document.getElementById("call-status");
 const interviewTitle = document.getElementById("interview-title");
 const interviewSubtitle = document.getElementById("interview-subtitle");
 const creditsNote = document.getElementById("credits-note");
 const avatarCircle = document.getElementById("avatar-circle");
 const studentWebcam = document.getElementById("student-webcam");
+const widgetContainer = document.getElementById("vapi-widget-container");
 
 let currentUser = null;
 let dreamSelection = null;
 let currentSessionId = null;
 let activeSubscription = null;
-let vapi = null;
 
 async function requireLogin() {
   const { data: { session } } = await supabaseClient.auth.getSession();
@@ -50,7 +45,6 @@ async function loadDreamSelection() {
   if (error || !data) {
     interviewTitle.textContent = "No dream company/role selected yet";
     interviewSubtitle.innerHTML = 'Please <a href="dream-selection.html">choose your dream company and role</a> first.';
-    startBtn.disabled = true;
     return null;
   }
 
@@ -59,8 +53,6 @@ async function loadDreamSelection() {
   return data;
 }
 
-// Checks the student's active subscription and remaining interview credits.
-// Blocks the Start button if there's no active plan or credits are used up.
 async function loadSubscriptionCredits() {
   const { data, error } = await supabaseClient
     .from("user_subscriptions")
@@ -74,14 +66,12 @@ async function loadSubscriptionCredits() {
   if (error || !data) {
     creditsNote.innerHTML = 'You don\'t have an active plan yet. <a href="pricing.html">Choose a plan</a> to start interviewing.';
     creditsNote.style.display = "block";
-    startBtn.disabled = true;
     return null;
   }
 
   if (data.credits_remaining <= 0) {
     creditsNote.innerHTML = `You've used all your interviews on the ${data.subscription_plans?.name || "current"} plan. <a href="pricing.html">Upgrade or renew</a> to continue.`;
     creditsNote.style.display = "block";
-    startBtn.disabled = true;
     return null;
   }
 
@@ -98,7 +88,7 @@ async function deductOneCredit() {
     .from("user_subscriptions")
     .update({ credits_remaining: newCount })
     .eq("id", activeSubscription.id)
-    .gt("credits_remaining", 0); // safety: only deduct if still > 0
+    .gt("credits_remaining", 0);
 
   if (error) {
     console.error(error);
@@ -136,83 +126,91 @@ async function markSessionCompleted() {
     .eq("id", currentSessionId);
 }
 
-startBtn.addEventListener("click", async () => {
-  if (!dreamSelection || !activeSubscription) return;
-
-  const deducted = await deductOneCredit();
-  if (!deducted) {
-    callStatus.textContent = "Could not start — no interview credits available.";
-    return;
-  }
-
-  // Show the student's own webcam (this is what makes it feel like a real
-  // video interview, without paying for AI-generated avatar video)
+async function startWebcamPreview() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
     studentWebcam.srcObject = stream;
   } catch (err) {
     console.warn("Webcam not available:", err);
-    // Not fatal — the interview can continue on audio alone
   }
+}
 
-  currentSessionId = await createSessionRow();
-  callStatus.textContent = "Connecting to your AI interviewer...";
-  creditsNote.textContent = `${activeSubscription.credits_remaining} interview${activeSubscription.credits_remaining === 1 ? "" : "s"} remaining on your plan.`;
+function stopWebcamPreview() {
+  if (studentWebcam.srcObject) {
+    studentWebcam.srcObject.getTracks().forEach((track) => track.stop());
+    studentWebcam.srcObject = null;
+  }
+}
 
-  vapi = new Vapi(VAPI_PUBLIC_KEY);
+// Renders the official Vapi widget as a plain custom element — this
+// handles the actual call connection reliably, no manual SDK wiring.
+function renderVapiWidget() {
+  const widget = document.createElement("vapi-widget");
+  widget.setAttribute("public-key", VAPI_PUBLIC_KEY);
+  widget.setAttribute("assistant-id", VAPI_ASSISTANT_ID);
+  widget.setAttribute("mode", "voice");
+  widget.setAttribute("size", "full");
+  widget.setAttribute("theme", "light");
+  widget.setAttribute("accent-color", "#C79A3E");
+  widget.setAttribute("cta-button-color", "#10192B");
+  widget.setAttribute("cta-button-text-color", "#F6F3EC");
+  widget.setAttribute("start-button-text", "Start Interview");
+  widget.setAttribute("end-button-text", "End Interview");
+  widget.setAttribute("title", "AI Interviewer");
 
-  vapi.on("call-start", () => {
-    callStatus.textContent = "Interview in progress. Speak naturally.";
-    startBtn.style.display = "none";
-    endBtn.style.display = "inline-block";
-  });
-
-  // Pulse the avatar's ring while the AI is actually speaking
-  vapi.on("speech-start", () => {
-    avatarCircle.classList.add("speaking");
-  });
-  vapi.on("speech-end", () => {
-    avatarCircle.classList.remove("speaking");
-  });
-
-  vapi.on("error", (err) => {
-    console.error("Vapi error:", err);
-    const message = err?.error?.message || err?.errorMsg || err?.message || "Unknown error";
-    callStatus.textContent = "Could not connect: " + message;
-    startBtn.style.display = "inline-block";
-    endBtn.style.display = "none";
-  });
-
-  vapi.on("call-end", async () => {
-    callStatus.textContent = "Interview ended. Your scoreboard will be emailed to you shortly.";
-    endBtn.style.display = "none";
-    startBtn.style.display = activeSubscription.credits_remaining > 0 ? "inline-block" : "none";
-    avatarCircle.classList.remove("speaking");
-    if (studentWebcam.srcObject) {
-      studentWebcam.srcObject.getTracks().forEach((track) => track.stop());
-      studentWebcam.srcObject = null;
-    }
-    await markSessionCompleted();
-    // NOTE: actual scoring happens via Vapi.ai's Analysis Plan + a
-    // webhook (e.g. to Zapier) that emails the student. See README.
-  });
-
-  vapi.start(VAPI_ASSISTANT_ID, {
+  // Pass the student's dream company/role into the assistant as variables
+  widget.assistantOverrides = {
     variableValues: {
       dream_company: dreamSelection.company_name || "",
       dream_role: dreamSelection.role_name || ""
     }
-  });
-});
+  };
 
-endBtn.addEventListener("click", () => {
-  if (vapi) vapi.stop();
-});
+  // Best-effort event hooks (widget-provided callbacks)
+  widget.onVoiceStart = () => {
+    callStatus.textContent = "Interview in progress. Speak naturally.";
+    avatarCircle.classList.add("speaking");
+  };
+
+  widget.onVoiceEnd = async () => {
+    callStatus.textContent = "Interview ended. Your scoreboard will be emailed to you shortly.";
+    avatarCircle.classList.remove("speaking");
+    stopWebcamPreview();
+    await markSessionCompleted();
+  };
+
+  widget.onError = (err) => {
+    console.error("Vapi widget error:", err);
+    callStatus.textContent = "Could not connect: " + (err?.message || "Unknown error");
+  };
+
+  widgetContainer.innerHTML = "";
+  widgetContainer.appendChild(widget);
+
+  callStatus.textContent = "Ready — click Start Interview below.";
+}
 
 (async () => {
   currentUser = await requireLogin();
   if (!currentUser) return;
+
   dreamSelection = await loadDreamSelection();
   activeSubscription = await loadSubscriptionCredits();
-  if (!activeSubscription) startBtn.disabled = true;
+
+  if (!dreamSelection || !activeSubscription) {
+    callStatus.textContent = "Cannot start yet — see message above.";
+    return;
+  }
+
+  // Reserve this interview: deduct credit, log session, then show the widget
+  const deducted = await deductOneCredit();
+  if (!deducted) {
+    callStatus.textContent = "Could not reserve an interview slot. Please refresh and try again.";
+    return;
+  }
+  currentSessionId = await createSessionRow();
+  creditsNote.textContent = `${activeSubscription.credits_remaining} interview${activeSubscription.credits_remaining === 1 ? "" : "s"} remaining on your plan.`;
+
+  await startWebcamPreview();
+  renderVapiWidget();
 })();
