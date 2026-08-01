@@ -1,5 +1,5 @@
 // =====================================================================
-// INTERVIEW PAGE LOGIC — Vapi.ai integration
+// INTERVIEW PAGE LOGIC — Vapi.ai integration + plan credit enforcement
 // =====================================================================
 // FILL THESE IN from your Vapi.ai dashboard (vapi.ai -> API Keys):
 const VAPI_PUBLIC_KEY = "PASTE_YOUR_VAPI_PUBLIC_KEY_HERE";
@@ -11,10 +11,12 @@ const endBtn = document.getElementById("end-call-btn");
 const callStatus = document.getElementById("call-status");
 const interviewTitle = document.getElementById("interview-title");
 const interviewSubtitle = document.getElementById("interview-subtitle");
+const creditsNote = document.getElementById("credits-note");
 
 let currentUser = null;
 let dreamSelection = null;
 let currentSessionId = null;
+let activeSubscription = null;
 let vapi = null;
 
 async function requireLogin() {
@@ -48,6 +50,55 @@ async function loadDreamSelection() {
   return data;
 }
 
+// Checks the student's active subscription and remaining interview credits.
+// Blocks the Start button if there's no active plan or credits are used up.
+async function loadSubscriptionCredits() {
+  const { data, error } = await supabaseClient
+    .from("user_subscriptions")
+    .select("id, credits_remaining, status, subscription_plans(name)")
+    .eq("user_id", currentUser.id)
+    .eq("status", "active")
+    .order("start_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) {
+    creditsNote.innerHTML = 'You don\'t have an active plan yet. <a href="pricing.html">Choose a plan</a> to start interviewing.';
+    creditsNote.style.display = "block";
+    startBtn.disabled = true;
+    return null;
+  }
+
+  if (data.credits_remaining <= 0) {
+    creditsNote.innerHTML = `You've used all your interviews on the ${data.subscription_plans?.name || "current"} plan. <a href="pricing.html">Upgrade or renew</a> to continue.`;
+    creditsNote.style.display = "block";
+    startBtn.disabled = true;
+    return null;
+  }
+
+  creditsNote.textContent = `${data.credits_remaining} interview${data.credits_remaining === 1 ? "" : "s"} remaining on your ${data.subscription_plans?.name || "current"} plan.`;
+  creditsNote.style.display = "block";
+  return data;
+}
+
+async function deductOneCredit() {
+  if (!activeSubscription) return false;
+  const newCount = activeSubscription.credits_remaining - 1;
+
+  const { error } = await supabaseClient
+    .from("user_subscriptions")
+    .update({ credits_remaining: newCount })
+    .eq("id", activeSubscription.id)
+    .gt("credits_remaining", 0); // safety: only deduct if still > 0
+
+  if (error) {
+    console.error(error);
+    return false;
+  }
+  activeSubscription.credits_remaining = newCount;
+  return true;
+}
+
 async function createSessionRow() {
   const { data, error } = await supabaseClient
     .from("interview_sessions")
@@ -77,10 +128,17 @@ async function markSessionCompleted() {
 }
 
 startBtn.addEventListener("click", async () => {
-  if (!dreamSelection) return;
+  if (!dreamSelection || !activeSubscription) return;
+
+  const deducted = await deductOneCredit();
+  if (!deducted) {
+    callStatus.textContent = "Could not start — no interview credits available.";
+    return;
+  }
 
   currentSessionId = await createSessionRow();
   callStatus.textContent = "Connecting to your AI interviewer...";
+  creditsNote.textContent = `${activeSubscription.credits_remaining} interview${activeSubscription.credits_remaining === 1 ? "" : "s"} remaining on your plan.`;
 
   vapi = new window.Vapi(VAPI_PUBLIC_KEY);
 
@@ -93,10 +151,10 @@ startBtn.addEventListener("click", async () => {
   vapi.on("call-end", async () => {
     callStatus.textContent = "Interview ended. Your scoreboard will be emailed to you shortly.";
     endBtn.style.display = "none";
+    startBtn.style.display = activeSubscription.credits_remaining > 0 ? "inline-block" : "none";
     await markSessionCompleted();
-    // NOTE: actual scoring happens server-side via a Supabase Edge
-    // Function triggered by a Vapi.ai webhook once the call ends.
-    // See project README for setting that up.
+    // NOTE: actual scoring happens via Vapi.ai's Analysis Plan + a
+    // webhook (e.g. to Zapier) that emails the student. See README.
   });
 
   vapi.start(VAPI_ASSISTANT_ID, {
@@ -115,4 +173,6 @@ endBtn.addEventListener("click", () => {
   currentUser = await requireLogin();
   if (!currentUser) return;
   dreamSelection = await loadDreamSelection();
+  activeSubscription = await loadSubscriptionCredits();
+  if (!activeSubscription) startBtn.disabled = true;
 })();
