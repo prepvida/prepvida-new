@@ -7,7 +7,7 @@
 
 // FILL THESE IN from your Vapi.ai dashboard (vapi.ai -> API Keys):
 const VAPI_PUBLIC_KEY = "f669166b-f926-4d68-90a3-0ed7461ecaef";
-const VAPI_ASSISTANT_ID = "a31e5c43-af58-4cf2-8d01-eeae23877f5c";
+const VAPI_ASSISTANT_ID = "6b84ec28-24b9-4478-b3e6-0604a9093d73";
 // =====================================================================
 
 const callStatus = document.getElementById("call-status");
@@ -162,12 +162,13 @@ function renderVapiWidget() {
   widget.setAttribute("start-button-text", "Start Interview");
   widget.setAttribute("end-button-text", "End Interview");
   widget.setAttribute("title", "AI Interviewer");
-  widget.setAttribute("assistant-overrides", JSON.stringify({
-    variableValues: {
-      dream_company: dreamSelection.company_name || "",
-      dream_role: dreamSelection.role_name || ""
-    }
-  }));
+  // Temporarily testing without assistant-overrides to isolate the 400 error
+  // widget.setAttribute("assistant-overrides", JSON.stringify({
+  //   variableValues: {
+  //     dream_company: dreamSelection.company_name || "",
+  //     dream_role: dreamSelection.role_name || ""
+  //   }
+  // }));
 
   // Best-effort event hooks (widget-provided callbacks)
   widget.onVoiceStart = () => {
