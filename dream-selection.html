@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PrepVida — Choose Your Dream Company & Role</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a href="dashboard.html" class="brand"><span class="brand-mark"></span> PrepVida</a>
+  <nav class="nav-links">
+    <a href="dashboard.html">Dashboard</a>
+    <a href="pricing.html">Pricing</a>
+  </nav>
+</header>
+
+<main class="narrow-shell">
+  <div class="eyebrow">Step 1 of 2</div>
+  <h1>What are you preparing for?</h1>
+  <p>Pick your target company and role — every interview question will be shaped around this.</p>
+
+  <div id="status-message" class="status-msg"></div>
+
+  <form id="dream-form">
+    <label for="company-select">Dream company</label>
+    <select id="company-select" required>
+      <option value="">Loading companies...</option>
+    </select>
+
+    <label for="role-select">Dream role</label>
+    <select id="role-select" required>
+      <option value="">Select a company first</option>
+    </select>
+
+    <label for="experience-select">Experience level</label>
+    <select id="experience-select">
+      <option value="fresher">Fresher</option>
+      <option value="mid">Mid-level</option>
+      <option value="senior">Senior</option>
+    </select>
+
+    <button type="submit" class="btn-block">Save & Continue to Interview</button>
+  </form>
+</main>
+
+<footer class="site-footer">
+  <ul class="footer-links">
+    <li><a href="terms.html">Terms</a></li>
+    <li><a href="privacy.html">Privacy</a></li>
+    <li><a href="security.html">Security</a></li>
+    <li><a href="status.html">Status</a></li>
+    <li><a href="community.html">Community</a></li>
+    <li><a href="docs.html">Docs</a></li>
+    <li><a href="contact.html">Contact</a></li>
+  </ul>
+  <div class="footer-note">© 2026 PrepVida.in Inc. All rights reserved.</div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/dream-selection.js"></script>
+</body>
+</html>

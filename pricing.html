@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PrepVida — Plans & Pricing</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="brand"><span class="brand-mark"></span> PrepVida</a>
+  <nav class="nav-links">
+    <a href="pricing.html">Pricing</a>
+    <a href="contact.html">Contact</a>
+  </nav>
+</header>
+
+<main class="page-shell">
+  <div class="eyebrow">Plans</div>
+  <h1>Choose how you rehearse</h1>
+  <p>Every plan includes AI-conducted interview rounds tailored to your dream company and role, with results delivered straight to your inbox.</p>
+
+  <div class="plans-grid" id="plans-container">
+    <!-- Plans are loaded from Supabase and injected here -->
+  </div>
+</main>
+
+<footer class="site-footer">
+  <ul class="footer-links">
+    <li><a href="terms.html">Terms</a></li>
+    <li><a href="privacy.html">Privacy</a></li>
+    <li><a href="security.html">Security</a></li>
+    <li><a href="status.html">Status</a></li>
+    <li><a href="community.html">Community</a></li>
+    <li><a href="docs.html">Docs</a></li>
+    <li><a href="contact.html">Contact</a></li>
+  </ul>
+  <div class="footer-note">© 2026 PrepVida.in Inc. All rights reserved.</div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/pricing.js"></script>
+</body>
+</html>

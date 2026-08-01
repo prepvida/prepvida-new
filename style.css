@@ -1,0 +1,364 @@
+/* =====================================================================
+   PREPVIDA.IN — DESIGN SYSTEM
+   Palette: ink navy, aged paper, brass accent — evokes the gravity of
+   a real interview panel and an examination ledger, not a generic app.
+   Display face: Fraunces (serif, editorial, confident)
+   Body face: Inter (clean, legible, quiet)
+   ===================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --ink: #10192B;
+  --ink-soft: #1C2A45;
+  --paper: #F6F3EC;
+  --paper-dim: #EBE6D9;
+  --brass: #C79A3E;
+  --brass-dim: #9C7A2E;
+  --slate: #57606F;
+  --line: rgba(16, 25, 43, 0.12);
+  --line-on-ink: rgba(246, 243, 236, 0.16);
+  --success: #2F6F4E;
+  --danger: #9C3B3B;
+
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.4em 0;
+  color: var(--ink);
+}
+
+h1 { font-size: clamp(2rem, 4vw, 3rem); }
+h2 { font-size: clamp(1.5rem, 3vw, 2rem); }
+h3 { font-size: 1.15rem; }
+
+p { margin: 0 0 1em 0; color: var(--slate); }
+
+a { color: inherit; }
+
+/* ---------- Layout shells ---------- */
+
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 2rem;
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.brand {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  color: var(--paper);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.brand-mark {
+  width: 10px;
+  height: 10px;
+  background: var(--brass);
+  border-radius: 1px;
+  transform: rotate(45deg);
+  display: inline-block;
+}
+
+.nav-links {
+  display: flex;
+  gap: 1.75rem;
+  font-size: 0.92rem;
+}
+
+.nav-links a {
+  text-decoration: none;
+  color: var(--paper);
+  opacity: 0.8;
+  transition: opacity 0.15s;
+}
+.nav-links a:hover { opacity: 1; }
+
+.page-shell {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 3rem 2rem 5rem 2rem;
+}
+
+.narrow-shell {
+  max-width: 460px;
+  margin: 0 auto;
+  padding: 4rem 1.5rem 5rem 1.5rem;
+}
+
+.site-footer {
+  background: var(--ink);
+  color: var(--paper);
+  padding: 2.5rem 2rem;
+  margin-top: 4rem;
+}
+
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem 2rem;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.5rem 0;
+  font-size: 0.85rem;
+}
+
+.footer-links a { text-decoration: none; opacity: 0.75; }
+.footer-links a:hover { opacity: 1; }
+
+.footer-note {
+  font-size: 0.78rem;
+  opacity: 0.55;
+  border-top: 1px solid var(--line-on-ink);
+  padding-top: 1.25rem;
+}
+
+/* ---------- Cards & ledger motif ---------- */
+
+.card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1.75rem;
+}
+
+.ledger-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--line);
+  gap: 1rem;
+}
+.ledger-row:last-child { border-bottom: none; }
+
+.ledger-label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--brass-dim);
+  font-weight: 600;
+  min-width: 90px;
+}
+
+/* ---------- Forms ---------- */
+
+label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+  color: var(--ink);
+}
+
+input, select, textarea {
+  width: 100%;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  background: #fff;
+  margin-bottom: 1.1rem;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+  border-color: var(--brass);
+}
+
+button, .btn {
+  display: inline-block;
+  background: var(--ink);
+  color: var(--paper);
+  border: none;
+  padding: 0.8rem 1.6rem;
+  border-radius: 3px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.92rem;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+  transition: background 0.15s;
+}
+button:hover, .btn:hover { background: var(--ink-soft); }
+button:focus-visible, .btn:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+
+.btn-brass { background: var(--brass); color: var(--ink); }
+.btn-brass:hover { background: var(--brass-dim); color: var(--paper); }
+
+.btn-block { display: block; width: 100%; }
+
+.form-footer-note {
+  text-align: center;
+  font-size: 0.88rem;
+  margin-top: 1rem;
+  color: var(--slate);
+}
+
+.form-footer-note a { color: var(--brass-dim); font-weight: 600; text-decoration: none; }
+
+.privacy-note {
+  font-size: 0.78rem;
+  color: var(--slate);
+  text-align: center;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+}
+
+.status-msg {
+  font-size: 0.85rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 3px;
+  margin-bottom: 1rem;
+  display: none;
+}
+.status-msg.error { background: #FBEAEA; color: var(--danger); display: block; }
+.status-msg.success { background: #EAF3EE; color: var(--success); display: block; }
+
+/* ---------- Pricing ---------- */
+
+.plans-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.plan-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2rem 1.75rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.plan-card.featured {
+  border: 2px solid var(--brass);
+  position: relative;
+}
+
+.plan-tag {
+  position: absolute;
+  top: -12px;
+  left: 1.75rem;
+  background: var(--brass);
+  color: var(--ink);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.3rem 0.7rem;
+  border-radius: 2px;
+}
+
+.plan-price {
+  font-family: var(--font-display);
+  font-size: 2.3rem;
+  margin: 0.6rem 0 1.2rem 0;
+}
+.plan-price span { font-size: 0.95rem; color: var(--slate); font-weight: 400; font-family: var(--font-body); }
+
+.plan-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.75rem 0;
+  flex-grow: 1;
+}
+.plan-features li {
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+.plan-features li:last-child { border-bottom: none; }
+
+/* ---------- Dashboard ---------- */
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  margin: 2rem 0;
+}
+
+.stat-box {
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: 4px;
+  padding: 1.5rem;
+  text-align: center;
+}
+.stat-box .stat-num {
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  color: var(--brass);
+}
+.stat-box .stat-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.8;
+}
+
+.session-item {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.session-score {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  color: var(--brass-dim);
+}
+
+.eyebrow {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--brass-dim);
+  font-weight: 700;
+  margin-bottom: 0.6rem;
+}
+
+@media (max-width: 640px) {
+  .site-header { flex-direction: column; gap: 1rem; align-items: flex-start; }
+  .nav-links { flex-wrap: wrap; gap: 1rem; }
+}

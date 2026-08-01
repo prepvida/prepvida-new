@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PrepVida — Dashboard</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a href="dashboard.html" class="brand"><span class="brand-mark"></span> PrepVida</a>
+  <nav class="nav-links">
+    <a href="dream-selection.html">Change Dream Role</a>
+    <a href="pricing.html">Plans</a>
+    <a href="#" id="logout-link">Log Out</a>
+  </nav>
+</header>
+
+<main class="page-shell">
+  <div class="eyebrow">Your Progress</div>
+  <h1>Interview Record</h1>
+  <p id="welcome-line">Loading your record...</p>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="stat-num" id="stat-total">0</div>
+      <div class="stat-label">Total Interviews</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-num" id="stat-avg">0</div>
+      <div class="stat-label">Average Score</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-num" id="stat-best">0</div>
+      <div class="stat-label">Best Score</div>
+    </div>
+  </div>
+
+  <h2>Session History</h2>
+  <div id="sessions-container">
+    <p>Loading sessions...</p>
+  </div>
+
+  <a href="interview.html" class="btn btn-brass" style="margin-top:1.5rem;">Start New Interview</a>
+</main>
+
+<footer class="site-footer">
+  <ul class="footer-links">
+    <li><a href="terms.html">Terms</a></li>
+    <li><a href="privacy.html">Privacy</a></li>
+    <li><a href="security.html">Security</a></li>
+    <li><a href="status.html">Status</a></li>
+    <li><a href="community.html">Community</a></li>
+    <li><a href="docs.html">Docs</a></li>
+    <li><a href="contact.html">Contact</a></li>
+  </ul>
+  <div class="footer-note">© 2026 PrepVida.in Inc. All rights reserved.</div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/dashboard.js"></script>
+</body>
+</html>

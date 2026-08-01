@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PrepVida — Your Interview</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a href="dashboard.html" class="brand"><span class="brand-mark"></span> PrepVida</a>
+  <nav class="nav-links">
+    <a href="dashboard.html">Dashboard</a>
+  </nav>
+</header>
+
+<main class="page-shell">
+  <div class="eyebrow">Live Session</div>
+  <h1 id="interview-title">Preparing your interview...</h1>
+  <p id="interview-subtitle">Interviewing for your selected dream company and role.</p>
+
+  <div class="card" style="margin-top:2rem;">
+    <div id="call-status" class="status-msg" style="display:block; background:#EBE6D9; color:#57606F;">
+      Not started yet.
+    </div>
+
+    <div style="display:flex; gap:1rem; margin-top:1rem;">
+      <button id="start-call-btn" class="btn-brass">Start Interview</button>
+      <button id="end-call-btn" class="btn" style="display:none;">End Interview</button>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:1.5rem;">
+    <h3>How this works</h3>
+    <p>Click "Start Interview" to begin speaking with the AI interviewer. When you're done, click "End Interview" — your scoreboard will be emailed to you automatically once it's ready.</p>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <ul class="footer-links">
+    <li><a href="terms.html">Terms</a></li>
+    <li><a href="privacy.html">Privacy</a></li>
+    <li><a href="security.html">Security</a></li>
+    <li><a href="status.html">Status</a></li>
+    <li><a href="community.html">Community</a></li>
+    <li><a href="docs.html">Docs</a></li>
+    <li><a href="contact.html">Contact</a></li>
+  </ul>
+  <div class="footer-note">© 2026 PrepVida.in Inc. All rights reserved.</div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+
+<!-- Vapi.ai Web SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/dist/index.js"></script>
+
+<script src="js/interview.js"></script>
+</body>
+</html>

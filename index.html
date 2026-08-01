@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PrepVida — Sign In</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="brand"><span class="brand-mark"></span> PrepVida</a>
+  <nav class="nav-links">
+    <a href="pricing.html">Pricing</a>
+    <a href="contact.html">Contact</a>
+  </nav>
+</header>
+
+<main class="narrow-shell">
+  <div class="eyebrow">Student Login</div>
+  <h1 id="form-heading">Welcome back</h1>
+  <p>Sign in to continue preparing for your dream company and role.</p>
+
+  <div id="status-message" class="status-msg"></div>
+
+  <form id="auth-form">
+    <div id="signup-only" style="display:none;">
+      <label for="full_name">Full name</label>
+      <input type="text" id="full_name" placeholder="Your full name">
+    </div>
+
+    <label for="email">Email address</label>
+    <input type="email" id="email" required placeholder="you@example.com">
+
+    <label for="password">Password</label>
+    <input type="password" id="password" required placeholder="At least 6 characters">
+
+    <button type="submit" class="btn-block" id="submit-btn">Sign In</button>
+  </form>
+
+  <p class="form-footer-note">
+    <span id="toggle-text">Don't have an account?</span>
+    <a href="#" id="toggle-mode">Create one</a>
+  </p>
+
+  <p class="privacy-note">We do not share your personal data. See our <a href="privacy.html">Privacy Policy</a>.</p>
+</main>
+
+<footer class="site-footer">
+  <ul class="footer-links">
+    <li><a href="terms.html">Terms</a></li>
+    <li><a href="privacy.html">Privacy</a></li>
+    <li><a href="security.html">Security</a></li>
+    <li><a href="status.html">Status</a></li>
+    <li><a href="community.html">Community</a></li>
+    <li><a href="docs.html">Docs</a></li>
+    <li><a href="contact.html">Contact</a></li>
+  </ul>
+  <div class="footer-note">© 2026 PrepVida.in Inc. All rights reserved.</div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/auth.js"></script>
+</body>
+</html>
