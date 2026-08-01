@@ -19,20 +19,17 @@
 <main class="narrow-shell">
   <div class="eyebrow">Step 1 of 2</div>
   <h1>What are you preparing for?</h1>
-  <p>Pick your target company and role — every interview question will be shaped around this.</p>
+  <p>Type any company and any role — every interview question will be shaped around exactly what you enter.</p>
 
   <div id="status-message" class="status-msg"></div>
 
   <form id="dream-form">
-    <label for="company-select">Dream company</label>
-    <select id="company-select" required>
-      <option value="">Loading companies...</option>
-    </select>
+    <label for="company-input">Dream company</label>
+    <input type="text" id="company-input" list="company-suggestions" required placeholder="e.g. Google, Zomato, a local startup, anything">
+    <datalist id="company-suggestions"></datalist>
 
-    <label for="role-select">Dream role</label>
-    <select id="role-select" required>
-      <option value="">Select a company first</option>
-    </select>
+    <label for="role-input">Dream role</label>
+    <input type="text" id="role-input" required placeholder="e.g. Software Engineer, Product Manager, Sales Associate">
 
     <label for="experience-select">Experience level</label>
     <select id="experience-select">

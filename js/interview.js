@@ -29,7 +29,7 @@ async function requireLogin() {
 async function loadDreamSelection() {
   const { data, error } = await supabaseClient
     .from("dream_selections")
-    .select("id, company_id, role_id, companies(name), roles(role_name)")
+    .select("id, company_name, role_name")
     .eq("user_id", currentUser.id)
     .eq("is_active", true)
     .order("created_at", { ascending: false })
@@ -43,8 +43,8 @@ async function loadDreamSelection() {
     return null;
   }
 
-  interviewTitle.textContent = `Interviewing for ${data.roles?.role_name || "your role"}`;
-  interviewSubtitle.textContent = `Company focus: ${data.companies?.name || "N/A"}`;
+  interviewTitle.textContent = `Interviewing for ${data.role_name || "your role"}`;
+  interviewSubtitle.textContent = `Company focus: ${data.company_name || "N/A"}`;
   return data;
 }
 
@@ -101,8 +101,8 @@ startBtn.addEventListener("click", async () => {
 
   vapi.start(VAPI_ASSISTANT_ID, {
     variableValues: {
-      dream_company: dreamSelection.companies?.name || "",
-      dream_role: dreamSelection.roles?.role_name || ""
+      dream_company: dreamSelection.company_name || "",
+      dream_role: dreamSelection.role_name || ""
     }
   });
 });
