@@ -19,6 +19,33 @@ const avatarCircle = document.getElementById("avatar-circle");
 const studentWebcam = document.getElementById("student-webcam");
 const webcamFallback = document.getElementById("webcam-fallback");
 const transcriptBox = document.getElementById("transcript-box");
+const callTimer = document.getElementById("call-timer");
+
+const MAX_CALL_SECONDS = 20 * 60; // matches the 20-min limit set on the Vapi assistant
+let timerInterval = null;
+
+function startCallTimer() {
+  let secondsLeft = MAX_CALL_SECONDS;
+  callTimer.style.display = "block";
+  updateTimerDisplay(secondsLeft);
+  timerInterval = setInterval(() => {
+    secondsLeft--;
+    updateTimerDisplay(secondsLeft);
+    if (secondsLeft <= 0) stopCallTimer();
+  }, 1000);
+}
+
+function updateTimerDisplay(secondsLeft) {
+  const mins = Math.max(0, Math.floor(secondsLeft / 60));
+  const secs = Math.max(0, secondsLeft % 60);
+  callTimer.textContent = `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
+function stopCallTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = null;
+  callTimer.style.display = "none";
+}
 
 let currentUser = null;
 let dreamSelection = null;
@@ -161,25 +188,30 @@ function addTranscriptLine(speaker, text) {
 
 startBtn.addEventListener("click", async () => {
   if (!dreamSelection || !activeSubscription) return;
-
-  const deducted = await deductOneCredit();
-  if (!deducted) {
-    callStatus.textContent = "Could not start — no interview credits available.";
-    return;
-  }
+  if (startBtn.disabled) return; // guard against double-clicks
+  startBtn.disabled = true;
 
   await startWebcamPreview();
-
-  currentSessionId = await createSessionRow();
   callStatus.textContent = "Connecting to your AI interviewer...";
-  creditsNote.textContent = `${activeSubscription.credits_remaining} interview${activeSubscription.credits_remaining === 1 ? "" : "s"} remaining on your plan.`;
 
   vapi = new Vapi(VAPI_PUBLIC_KEY);
+  let creditDeducted = false;
 
-  vapi.on("call-start", () => {
+  vapi.on("call-start", async () => {
+    // Only deduct the credit once the call has actually connected —
+    // a failed connection attempt should never cost the student a credit.
+    if (!creditDeducted) {
+      const deducted = await deductOneCredit();
+      if (deducted) {
+        creditDeducted = true;
+        currentSessionId = await createSessionRow();
+        creditsNote.textContent = `${activeSubscription.credits_remaining} interview${activeSubscription.credits_remaining === 1 ? "" : "s"} remaining on your plan.`;
+      }
+    }
     callStatus.textContent = "Interview in progress. Speak naturally.";
     startBtn.style.display = "none";
     endBtn.style.display = "inline-block";
+    startCallTimer();
   });
 
   vapi.on("speech-start", () => {
@@ -202,6 +234,7 @@ startBtn.addEventListener("click", async () => {
     const message = err?.error?.message || err?.errorMsg || err?.message || "Unknown error";
     callStatus.textContent = "Could not connect: " + message;
     startBtn.style.display = "inline-block";
+    startBtn.disabled = false;
     endBtn.style.display = "none";
   });
 
@@ -209,8 +242,10 @@ startBtn.addEventListener("click", async () => {
     callStatus.textContent = "Interview ended. Your scoreboard will be emailed to you shortly.";
     endBtn.style.display = "none";
     startBtn.style.display = activeSubscription.credits_remaining > 0 ? "inline-block" : "none";
+    startBtn.disabled = false;
     avatarCircle.classList.remove("speaking");
     stopWebcamPreview();
+    stopCallTimer();
     await markSessionCompleted();
     // NOTE: actual scoring happens via Vapi.ai's Analysis Plan + a
     // webhook (e.g. to Zapier) that emails the student. See README.
