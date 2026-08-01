@@ -2,8 +2,8 @@
 // INTERVIEW PAGE LOGIC — Vapi.ai integration
 // =====================================================================
 // FILL THESE IN from your Vapi.ai dashboard (vapi.ai -> API Keys):
-const VAPI_PUBLIC_KEY = "PASTE_YOUR_VAPI_PUBLIC_KEY_HERE";
-const VAPI_ASSISTANT_ID = "PASTE_YOUR_VAPI_ASSISTANT_ID_HERE";
+const VAPI_PUBLIC_KEY = "f669166b-f926-4d68-90a3-0ed7461ecaef";
+const VAPI_ASSISTANT_ID = "a31e5c43-af58-4cf2-8d01-eeae23877f5c";
 // =====================================================================
 
 const startBtn = document.getElementById("start-call-btn");
