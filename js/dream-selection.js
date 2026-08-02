@@ -11,6 +11,33 @@ const resumeInput = document.getElementById("resume-input");
 const resumeStatus = document.getElementById("resume-status");
 
 let extractedResumeText = "";
+let verifiedCompanyNames = new Set();
+
+// Live company lookup as the student types — confirms real companies
+// exist without hard-blocking smaller/newer ones not in the database.
+let companyLookupTimeout = null;
+companyInput.addEventListener("input", () => {
+  clearTimeout(companyLookupTimeout);
+  const query = companyInput.value.trim();
+  if (query.length < 2) {
+    companySuggestions.innerHTML = "";
+    return;
+  }
+
+  companyLookupTimeout = setTimeout(async () => {
+    try {
+      const res = await fetch(`https://autocomplete.clearbit.com/v1/companies/suggest?query=${encodeURIComponent(query)}`);
+      if (!res.ok) return;
+      const results = await res.json();
+
+      verifiedCompanyNames = new Set(results.map((r) => r.name.toLowerCase()));
+      companySuggestions.innerHTML = results.map((r) => `<option value="${r.name}"></option>`).join("");
+    } catch (err) {
+      console.warn("Company lookup unavailable:", err);
+      // Fails silently — students can still type any company manually
+    }
+  }, 300); // debounce so we don't fire a request on every keystroke
+});
 
 // Extract text from the uploaded PDF resume as soon as it's selected
 resumeInput.addEventListener("change", async () => {
@@ -59,21 +86,6 @@ async function requireLogin() {
   return session.user;
 }
 
-// Loads past company names typed by anyone (just for handy autocomplete
-// suggestions) — students are never limited to only these.
-async function loadSuggestions() {
-  const { data, error } = await supabaseClient
-    .from("dream_selections")
-    .select("company_name")
-    .not("company_name", "is", null)
-    .limit(200);
-
-  if (error || !data) return;
-
-  const uniqueNames = [...new Set(data.map((d) => d.company_name).filter(Boolean))];
-  companySuggestions.innerHTML = uniqueNames.map((name) => `<option value="${name}"></option>`).join("");
-}
-
 dreamForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   if (!currentUser) return;
@@ -85,6 +97,16 @@ dreamForm.addEventListener("submit", async (e) => {
   if (!companyName || !roleName) {
     showStatus("Please enter both a company and a role.", "error");
     return;
+  }
+
+  // Soft check — if the company wasn't found in our lookup, gently confirm
+  // rather than blocking (smaller/newer real companies may not be listed)
+  const isVerified = verifiedCompanyNames.has(companyName.toLowerCase());
+  if (!isVerified && verifiedCompanyNames.size > 0) {
+    const proceed = confirm(
+      `We couldn't verify "${companyName}" as a known company. If it's a real company (even a small one), that's fine — click OK to continue anyway. Click Cancel to double-check the spelling.`
+    );
+    if (!proceed) return;
   }
 
   // Deactivate any previous selection, then save this one as active
@@ -113,5 +135,4 @@ dreamForm.addEventListener("submit", async (e) => {
 
 (async () => {
   currentUser = await requireLogin();
-  if (currentUser) await loadSuggestions();
 })();
