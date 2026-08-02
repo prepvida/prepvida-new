@@ -67,7 +67,7 @@ async function requireLogin() {
 async function loadDreamSelection() {
   const { data, error } = await supabaseClient
     .from("dream_selections")
-    .select("id, company_name, role_name")
+    .select("id, company_name, role_name, resume_text")
     .eq("user_id", currentUser.id)
     .eq("is_active", true)
     .order("created_at", { ascending: false })
@@ -509,7 +509,8 @@ startBtn.addEventListener("click", async () => {
     variableValues: {
       dream_company: dreamSelection.company_name || "",
       dream_role: dreamSelection.role_name || "",
-      student_email: currentUser.email || ""
+      student_email: currentUser.email || "",
+      resume_summary: dreamSelection.resume_text || "No resume provided."
     }
   });
 });
