@@ -87,7 +87,7 @@ async function loadDreamSelection() {
 async function loadSubscriptionCredits() {
   const { data, error } = await supabaseClient
     .from("user_subscriptions")
-    .select("id, credits_remaining, status, subscription_plans(name)")
+    .select("id, credits_remaining, status, subscription_plans(name, interview_mode)")
     .eq("user_id", currentUser.id)
     .eq("status", "active")
     .order("start_date", { ascending: false })
@@ -177,6 +177,57 @@ function stopWebcamPreview() {
   }
 }
 
+// ---------- Video recording (Premium plan only) ----------
+let mediaRecorder = null;
+let recordedChunks = [];
+
+function startVideoRecording() {
+  if (!studentWebcam.srcObject) return; // no camera, nothing to record
+  recordedChunks = [];
+  try {
+    mediaRecorder = new MediaRecorder(studentWebcam.srcObject, { mimeType: "video/webm" });
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) recordedChunks.push(e.data);
+    };
+    mediaRecorder.start();
+  } catch (err) {
+    console.warn("Could not start video recording:", err);
+  }
+}
+
+async function stopAndUploadVideoRecording() {
+  if (!mediaRecorder || mediaRecorder.state === "inactive") return null;
+
+  return new Promise((resolve) => {
+    mediaRecorder.onstop = async () => {
+      try {
+        const blob = new Blob(recordedChunks, { type: "video/webm" });
+        const fileName = `${currentUser.id}/${currentSessionId || Date.now()}.webm`;
+
+        const { error: uploadError } = await supabaseClient.storage
+          .from("interview-recordings")
+          .upload(fileName, blob, { contentType: "video/webm" });
+
+        if (uploadError) {
+          console.error("Video upload failed:", uploadError);
+          resolve(null);
+          return;
+        }
+
+        const { data } = supabaseClient.storage
+          .from("interview-recordings")
+          .getPublicUrl(fileName);
+
+        resolve(data?.publicUrl || null);
+      } catch (err) {
+        console.error("Video processing failed:", err);
+        resolve(null);
+      }
+    };
+    mediaRecorder.stop();
+  });
+}
+
 function addTranscriptLine(speaker, text) {
   transcriptBox.style.display = "block";
   const line = document.createElement("div");
@@ -212,6 +263,11 @@ startBtn.addEventListener("click", async () => {
     startBtn.style.display = "none";
     endBtn.style.display = "inline-block";
     startCallTimer();
+
+    // Video recording is a Premium-plan feature only
+    if (activeSubscription?.subscription_plans?.interview_mode === "video_ai_avatar") {
+      startVideoRecording();
+    }
   });
 
   vapi.on("speech-start", () => {
@@ -239,14 +295,27 @@ startBtn.addEventListener("click", async () => {
   });
 
   vapi.on("call-end", async () => {
-    callStatus.textContent = "Interview ended. Your scoreboard will be emailed to you shortly.";
+    callStatus.textContent = "Interview ended. Processing your results...";
     endBtn.style.display = "none";
+    avatarCircle.classList.remove("speaking");
+    stopCallTimer();
+
+    // Upload video recording first (Premium plan), if one was made
+    let videoUrl = null;
+    if (activeSubscription?.subscription_plans?.interview_mode === "video_ai_avatar") {
+      videoUrl = await stopAndUploadVideoRecording();
+    }
+    stopWebcamPreview();
+
+    if (currentSessionId) {
+      const updates = { status: "completed", completed_at: new Date().toISOString() };
+      if (videoUrl) updates.video_recording_url = videoUrl;
+      await supabaseClient.from("interview_sessions").update(updates).eq("id", currentSessionId);
+    }
+
+    callStatus.textContent = "Interview ended. Your scoreboard will be emailed to you shortly.";
     startBtn.style.display = activeSubscription.credits_remaining > 0 ? "inline-block" : "none";
     startBtn.disabled = false;
-    avatarCircle.classList.remove("speaking");
-    stopWebcamPreview();
-    stopCallTimer();
-    await markSessionCompleted();
     // NOTE: actual scoring happens via Vapi.ai's Analysis Plan + a
     // webhook (e.g. to Zapier) that emails the student. See README.
   });
