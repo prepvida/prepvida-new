@@ -33,7 +33,7 @@ async function loadProfile() {
 async function loadSessionsAndScores() {
   const { data: sessions, error } = await supabaseClient
     .from("interview_sessions")
-    .select("id, round_type, interview_mode, status, started_at, completed_at, interview_scores(score, max_score, metric_name)")
+    .select("id, round_type, interview_mode, status, started_at, completed_at, report_url, interview_scores(score, max_score, metric_name)")
     .eq("user_id", currentUser.id)
     .order("started_at", { ascending: false });
 
@@ -79,10 +79,30 @@ async function loadSessionsAndScores() {
           <strong>${s.round_type} Round</strong> — ${s.interview_mode.replace(/_/g, " ")}
           <div style="font-size:0.82rem; color:#57606F;">${dateStr} · ${s.status}</div>
         </div>
-        <div class="session-score">${sessionAvg !== null ? sessionAvg.toFixed(0) + "%" : "Pending"}</div>
+        <div style="display:flex; align-items:center; gap:1rem;">
+          ${s.report_url ? `<a href="#" class="download-report-link" data-path="${s.report_url}" style="font-size:0.82rem; color:#9C7A2E; text-decoration:none; font-weight:600;">Download Report</a>` : ""}
+          <div class="session-score">${sessionAvg !== null ? sessionAvg.toFixed(0) + "%" : "Pending"}</div>
+        </div>
       </div>
     `;
   }).join("");
+
+  // Wire up download links: generate a fresh short-lived signed URL on click
+  document.querySelectorAll(".download-report-link").forEach((link) => {
+    link.addEventListener("click", async (e) => {
+      e.preventDefault();
+      const path = link.getAttribute("data-path");
+      const { data, error } = await supabaseClient.storage
+        .from("interview-reports")
+        .createSignedUrl(path, 60); // link valid for 60 seconds
+
+      if (error || !data?.signedUrl) {
+        alert("Could not generate download link. Please try again.");
+        return;
+      }
+      window.open(data.signedUrl, "_blank");
+    });
+  });
 }
 
 logoutLink.addEventListener("click", async (e) => {
