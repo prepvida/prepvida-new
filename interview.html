@@ -49,6 +49,10 @@
 
     <div id="credits-note" class="status-msg" style="display:none; background:#EAF3EE; color:#2F6F4E;"></div>
 
+    <div id="monitoring-note" style="display:none; font-size:0.78rem; color:#57606F; margin-top:0.5rem;">
+      🟢 Behavior monitoring active (Premium plan) — please stay visible in frame throughout the interview.
+    </div>
+
     <div id="transcript-box" style="display:none; background:#fff; border:1px solid var(--line); border-radius:4px; padding:1rem; margin-top:1rem; max-height:220px; overflow-y:auto; font-size:0.88rem; line-height:1.6;"></div>
 
     <div style="display:flex; gap:1rem; margin-top:1rem;">
@@ -78,6 +82,10 @@
 
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script src="js/supabase-config.js"></script>
+
+<!-- Face detection for Premium-plan behavior monitoring. Loaded with
+     `defer` so it never blocks the rest of the page if slow/unavailable. -->
+<script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
 
 <!-- Vapi Web SDK — reliable plain-browser build (the official widget
      package has a known bug in its request payload) -->

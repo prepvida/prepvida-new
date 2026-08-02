@@ -20,6 +20,7 @@ const studentWebcam = document.getElementById("student-webcam");
 const webcamFallback = document.getElementById("webcam-fallback");
 const transcriptBox = document.getElementById("transcript-box");
 const callTimer = document.getElementById("call-timer");
+const monitoringNote = document.getElementById("monitoring-note");
 
 const MAX_CALL_SECONDS = 20 * 60; // matches the 20-min limit set on the Vapi assistant
 let timerInterval = null;
@@ -170,7 +171,78 @@ async function startWebcamPreview() {
   }
 }
 
-function stopWebcamPreview() {
+// ---------- Behavior monitoring (Premium plan only) ----------
+// Uses face-api.js to periodically check the webcam feed for: no face
+// present (candidate left frame) or multiple faces (someone else in
+// frame). This is best-effort — if the library fails to load for any
+// reason, monitoring simply doesn't run and the interview continues
+// normally without it.
+
+let monitoringInterval = null;
+let faceModelsLoaded = false;
+let noFaceCount = 0;
+let multiFaceCount = 0;
+let totalChecks = 0;
+
+async function loadFaceModels() {
+  if (typeof faceapi === "undefined") {
+    console.warn("face-api.js did not load — behavior monitoring disabled.");
+    return false;
+  }
+  try {
+    const MODEL_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model";
+    await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+    return true;
+  } catch (err) {
+    console.warn("Could not load face detection models:", err);
+    return false;
+  }
+}
+
+function startBehaviorMonitoring() {
+  if (!faceModelsLoaded || !studentWebcam.srcObject) return;
+
+  monitoringNote.style.display = "block";
+  noFaceCount = 0;
+  multiFaceCount = 0;
+  totalChecks = 0;
+
+  monitoringInterval = setInterval(async () => {
+    try {
+      const detections = await faceapi.detectAllFaces(
+        studentWebcam,
+        new faceapi.TinyFaceDetectorOptions()
+      );
+      totalChecks++;
+      if (detections.length === 0) noFaceCount++;
+      if (detections.length > 1) multiFaceCount++;
+    } catch (err) {
+      console.warn("Face check failed:", err);
+    }
+  }, 4000); // check every 4 seconds — light enough not to affect performance
+}
+
+function stopBehaviorMonitoringAndGetSummary() {
+  if (monitoringInterval) clearInterval(monitoringInterval);
+  monitoringInterval = null;
+  monitoringNote.style.display = "none";
+
+  if (totalChecks === 0) return { flag: false, notes: null };
+
+  const noFaceRatio = noFaceCount / totalChecks;
+  const flags = [];
+  if (noFaceRatio > 0.25) {
+    flags.push(`Candidate was out of frame for approximately ${Math.round(noFaceRatio * 100)}% of the interview.`);
+  }
+  if (multiFaceCount > 0) {
+    flags.push(`Multiple faces were detected in frame ${multiFaceCount} time(s) during the interview.`);
+  }
+
+  return {
+    flag: flags.length > 0,
+    notes: flags.length > 0 ? flags.join(" ") : "No irregular behavior detected."
+  };
+}
   if (studentWebcam.srcObject) {
     studentWebcam.srcObject.getTracks().forEach((track) => track.stop());
     studentWebcam.srcObject = null;
@@ -267,6 +339,7 @@ startBtn.addEventListener("click", async () => {
     // Video recording is a Premium-plan feature only
     if (activeSubscription?.subscription_plans?.interview_mode === "video_ai_avatar") {
       startVideoRecording();
+      startBehaviorMonitoring();
     }
   });
 
@@ -302,7 +375,9 @@ startBtn.addEventListener("click", async () => {
 
     // Upload video recording first (Premium plan), if one was made
     let videoUrl = null;
+    let behaviorSummary = { flag: false, notes: null };
     if (activeSubscription?.subscription_plans?.interview_mode === "video_ai_avatar") {
+      behaviorSummary = stopBehaviorMonitoringAndGetSummary();
       videoUrl = await stopAndUploadVideoRecording();
     }
     stopWebcamPreview();
@@ -310,6 +385,10 @@ startBtn.addEventListener("click", async () => {
     if (currentSessionId) {
       const updates = { status: "completed", completed_at: new Date().toISOString() };
       if (videoUrl) updates.video_recording_url = videoUrl;
+      if (behaviorSummary.notes) {
+        updates.fraud_flag = behaviorSummary.flag;
+        updates.fraud_notes = behaviorSummary.notes;
+      }
       await supabaseClient.from("interview_sessions").update(updates).eq("id", currentSessionId);
     }
 
@@ -339,4 +418,10 @@ endBtn.addEventListener("click", () => {
   dreamSelection = await loadDreamSelection();
   activeSubscription = await loadSubscriptionCredits();
   if (!activeSubscription) startBtn.disabled = true;
+
+  // Preload face detection models early (Premium only) so they're
+  // ready by the time the call actually starts
+  if (activeSubscription?.subscription_plans?.interview_mode === "video_ai_avatar") {
+    faceModelsLoaded = await loadFaceModels();
+  }
 })();
