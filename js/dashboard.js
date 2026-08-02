@@ -33,7 +33,7 @@ async function loadProfile() {
 async function loadSessionsAndScores() {
   const { data: sessions, error } = await supabaseClient
     .from("interview_sessions")
-    .select("id, round_type, interview_mode, status, started_at, completed_at, report_url, interview_scores(score, max_score, metric_name)")
+    .select("id, round_type, interview_mode, status, started_at, completed_at, report_url, video_recording_url, interview_scores(score, max_score, metric_name)")
     .eq("user_id", currentUser.id)
     .order("started_at", { ascending: false });
 
@@ -81,6 +81,7 @@ async function loadSessionsAndScores() {
         </div>
         <div style="display:flex; align-items:center; gap:1rem;">
           ${s.report_url ? `<a href="#" class="download-report-link" data-path="${s.report_url}" style="font-size:0.82rem; color:#9C7A2E; text-decoration:none; font-weight:600;">Download Report</a>` : ""}
+          ${s.video_recording_url ? `<a href="#" class="download-video-link" data-path="${s.video_recording_url}" style="font-size:0.82rem; color:#9C7A2E; text-decoration:none; font-weight:600;">Download Video</a>` : ""}
           <div class="session-score">${sessionAvg !== null ? sessionAvg.toFixed(0) + "%" : "Pending"}</div>
         </div>
       </div>
@@ -95,6 +96,22 @@ async function loadSessionsAndScores() {
       const { data, error } = await supabaseClient.storage
         .from("interview-reports")
         .createSignedUrl(path, 60); // link valid for 60 seconds
+
+      if (error || !data?.signedUrl) {
+        alert("Could not generate download link. Please try again.");
+        return;
+      }
+      window.open(data.signedUrl, "_blank");
+    });
+  });
+
+  document.querySelectorAll(".download-video-link").forEach((link) => {
+    link.addEventListener("click", async (e) => {
+      e.preventDefault();
+      const path = link.getAttribute("data-path");
+      const { data, error } = await supabaseClient.storage
+        .from("interview-recordings")
+        .createSignedUrl(path, 60);
 
       if (error || !data?.signedUrl) {
         alert("Could not generate download link. Please try again.");

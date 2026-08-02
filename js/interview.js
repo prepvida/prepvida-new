@@ -284,11 +284,9 @@ async function stopAndUploadVideoRecording() {
           return;
         }
 
-        const { data } = supabaseClient.storage
-          .from("interview-recordings")
-          .getPublicUrl(fileName);
-
-        resolve(data?.publicUrl || null);
+        // Bucket is private — store the path only; signed links are
+        // generated fresh (and briefly) whenever someone views the dashboard.
+        resolve(fileName);
       } catch (err) {
         console.error("Video processing failed:", err);
         resolve(null);
