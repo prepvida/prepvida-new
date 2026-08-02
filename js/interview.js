@@ -21,6 +21,12 @@ const webcamFallback = document.getElementById("webcam-fallback");
 const transcriptBox = document.getElementById("transcript-box");
 const callTimer = document.getElementById("call-timer");
 const monitoringNote = document.getElementById("monitoring-note");
+const codePanelToggle = document.getElementById("code-panel-toggle");
+const openCodePanelLink = document.getElementById("open-code-panel");
+const codePanel = document.getElementById("code-panel");
+const codeInput = document.getElementById("code-input");
+const submitCodeBtn = document.getElementById("submit-code-btn");
+const codeSubmitStatus = document.getElementById("code-submit-status");
 
 const MAX_CALL_SECONDS = 20 * 60; // matches the 20-min limit set on the Vapi assistant
 let timerInterval = null;
@@ -410,6 +416,31 @@ function addTranscriptLine(speaker, text) {
   transcriptLines.push(`${speaker}: ${text}`);
 }
 
+openCodePanelLink.addEventListener("click", (e) => {
+  e.preventDefault();
+  codePanel.style.display = codePanel.style.display === "none" ? "block" : "none";
+});
+
+submitCodeBtn.addEventListener("click", () => {
+  const code = codeInput.value.trim();
+  if (!code || !vapi) return;
+
+  // Feed the code into the live call as if the candidate said it, so the
+  // AI interviewer can review and respond to it naturally.
+  vapi.send({
+    type: "add-message",
+    message: {
+      role: "user",
+      content: `Here is my code submission for the coding question:\n\n${code}`
+    }
+  });
+
+  addTranscriptLine("You (code submitted)", code);
+  codeSubmitStatus.textContent = "Sent to interviewer ✓";
+  setTimeout(() => { codeSubmitStatus.textContent = ""; }, 3000);
+  codeInput.value = "";
+});
+
 startBtn.addEventListener("click", async () => {
   if (!dreamSelection || !activeSubscription) return;
   if (startBtn.disabled) return; // guard against double-clicks
@@ -436,6 +467,7 @@ startBtn.addEventListener("click", async () => {
     startBtn.style.display = "none";
     endBtn.style.display = "inline-block";
     startCallTimer();
+    codePanelToggle.style.display = "block";
 
     // Video recording is a Premium-plan feature only
     if (activeSubscription?.subscription_plans?.interview_mode === "video_ai_avatar") {
@@ -473,6 +505,8 @@ startBtn.addEventListener("click", async () => {
     endBtn.style.display = "none";
     avatarCircle.classList.remove("speaking");
     stopCallTimer();
+    codePanelToggle.style.display = "none";
+    codePanel.style.display = "none";
 
     // Upload video recording first (Premium plan), if one was made
     let videoUrl = null;

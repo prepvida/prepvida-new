@@ -55,6 +55,17 @@
 
     <div id="transcript-box" style="display:none; background:#fff; border:1px solid var(--line); border-radius:4px; padding:1rem; margin-top:1rem; max-height:220px; overflow-y:auto; font-size:0.88rem; line-height:1.6;"></div>
 
+    <div id="code-panel-toggle" style="display:none; margin-top:1rem;">
+      <a href="#" id="open-code-panel" style="font-size:0.85rem; color:#9C7A2E; font-weight:600; text-decoration:none;">💻 Asked to write code? Open code editor</a>
+    </div>
+
+    <div id="code-panel" style="display:none; margin-top:1rem; background:#fff; border:1px solid var(--line); border-radius:4px; padding:1rem;">
+      <label for="code-input" style="margin-bottom:0.5rem;">Write your code below, then submit — the interviewer will review it</label>
+      <textarea id="code-input" rows="8" style="font-family:monospace; font-size:0.85rem; width:100%; padding:0.75rem; border:1px solid var(--line); border-radius:3px;" placeholder="// Write your solution here"></textarea>
+      <button id="submit-code-btn" class="btn" style="margin-top:0.75rem;">Submit Code to Interviewer</button>
+      <span id="code-submit-status" style="font-size:0.82rem; color:#2F6F4E; margin-left:0.75rem;"></span>
+    </div>
+
     <div style="display:flex; gap:1rem; margin-top:1rem;">
       <button id="start-call-btn" class="btn-brass">Start Interview</button>
       <button id="end-call-btn" class="btn" style="display:none;">End Interview</button>
