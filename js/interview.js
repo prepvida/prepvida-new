@@ -247,6 +247,8 @@ function stopBehaviorMonitoringAndGetSummary() {
     notes: flags.length > 0 ? flags.join(" ") : "No irregular behavior detected."
   };
 }
+
+function stopWebcamPreview() {
   if (studentWebcam.srcObject) {
     studentWebcam.srcObject.getTracks().forEach((track) => track.stop());
     studentWebcam.srcObject = null;
