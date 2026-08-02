@@ -323,7 +323,8 @@ startBtn.addEventListener("click", async () => {
   vapi.start(VAPI_ASSISTANT_ID, {
     variableValues: {
       dream_company: dreamSelection.company_name || "",
-      dream_role: dreamSelection.role_name || ""
+      dream_role: dreamSelection.role_name || "",
+      student_email: currentUser.email || ""
     }
   });
 });
