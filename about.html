@@ -6,6 +6,8 @@
 <title>About PrepVida — AI Interview Practice for Indian Job Seekers</title>
 <meta name="description" content="PrepVida.in is an AI-powered mock interview platform helping Indian students and job seekers practice real, personalized interviews for their dream company and role.">
 <link rel="stylesheet" href="css/style.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0A0F1C">
 </head>
 <body>
 
@@ -63,5 +65,10 @@
 }
 </script>
 
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js").catch(() => {});
+}
+</script>
 </body>
 </html>

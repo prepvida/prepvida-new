@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PrepVida — Dashboard</title>
 <link rel="stylesheet" href="css/style.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0A0F1C">
 </head>
 <body>
 
@@ -61,5 +63,10 @@
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script src="js/supabase-config.js"></script>
 <script src="js/dashboard.js"></script>
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js").catch(() => {});
+}
+</script>
 </body>
 </html>

@@ -6,6 +6,8 @@
 <title>PrepVida for Institutions — Bulk Interview Practice for Colleges & Training Institutes</title>
 <meta name="description" content="Bulk AI mock interview credits for colleges, training institutes, and placement cells. Give your students real, company-specific interview practice at scale.">
 <link rel="stylesheet" href="css/style.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0A0F1C">
 </head>
 <body>
 
@@ -87,5 +89,10 @@
   </ul>
   <div class="footer-note">© 2026 PrepVida.in Inc. All rights reserved.</div>
 </footer>
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js").catch(() => {});
+}
+</script>
 </body>
 </html>

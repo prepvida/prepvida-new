@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PrepVida — Security</title>
 <link rel="stylesheet" href="css/style.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0A0F1C">
 </head>
 <body>
 
@@ -44,5 +46,10 @@
   </ul>
   <div class="footer-note">© 2026 PrepVida.in Inc. All rights reserved.</div>
 </footer>
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js").catch(() => {});
+}
+</script>
 </body>
 </html>

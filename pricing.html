@@ -6,6 +6,8 @@
 <title>PrepVida — Plans & Pricing</title>
 <meta name="description" content="Choose from Basic, Pro, or Premium AI mock interview plans. Voice and video interview practice tailored to your dream company and role, priced in INR.">
 <link rel="stylesheet" href="css/style.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0A0F1C">
 </head>
 <body>
 
@@ -45,5 +47,10 @@
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script src="js/supabase-config.js"></script>
 <script src="js/pricing.js"></script>
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js").catch(() => {});
+}
+</script>
 </body>
 </html>
