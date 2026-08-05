@@ -28,6 +28,13 @@
   <div id="status-message" class="status-msg"></div>
 
   <form id="dream-form">
+    <label for="year-select">Where are you in your degree?</label>
+    <select id="year-select" required>
+      <option value="early">Early Years (not yet pre-final/final)</option>
+      <option value="prefinal">Pre-Final Year</option>
+      <option value="final" selected>Final Year (placement season)</option>
+    </select>
+
     <label for="company-input">Dream company</label>
     <input type="text" id="company-input" list="company-suggestions" required placeholder="e.g. Google, Zomato, a local startup, anything">
     <datalist id="company-suggestions"></datalist>

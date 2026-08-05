@@ -28,7 +28,7 @@ const codeInput = document.getElementById("code-input");
 const submitCodeBtn = document.getElementById("submit-code-btn");
 const codeSubmitStatus = document.getElementById("code-submit-status");
 
-const MAX_CALL_SECONDS = 20 * 60; // matches the 20-min limit set on the Vapi assistant
+let MAX_CALL_SECONDS = 20 * 60; // default; actual value set per plan once loaded
 let timerInterval = null;
 
 function startCallTimer() {
@@ -73,7 +73,7 @@ async function requireLogin() {
 async function loadDreamSelection() {
   const { data, error } = await supabaseClient
     .from("dream_selections")
-    .select("id, company_name, role_name, resume_text")
+    .select("id, company_name, role_name, resume_text, year_level")
     .eq("user_id", currentUser.id)
     .eq("is_active", true)
     .order("created_at", { ascending: false })
@@ -95,7 +95,7 @@ async function loadDreamSelection() {
 async function loadSubscriptionCredits() {
   const { data, error } = await supabaseClient
     .from("user_subscriptions")
-    .select("id, credits_remaining, status, subscription_plans(name, interview_mode)")
+    .select("id, credits_remaining, status, subscription_plans(name, interview_mode, max_duration_minutes)")
     .eq("user_id", currentUser.id)
     .eq("status", "active")
     .order("start_date", { ascending: false })
@@ -541,13 +541,17 @@ startBtn.addEventListener("click", async () => {
     // webhook (e.g. to Zapier) that emails the student. See README.
   });
 
+  const yearLabels = { early: "an early-year student, not yet in placement season", prefinal: "a pre-final year student approaching placement season", final: "a final-year student in active placement season" };
+
   vapi.start(VAPI_ASSISTANT_ID, {
     variableValues: {
       dream_company: dreamSelection.company_name || "",
       dream_role: dreamSelection.role_name || "",
       student_email: currentUser.email || "",
-      resume_summary: dreamSelection.resume_text || "No resume provided."
-    }
+      resume_summary: dreamSelection.resume_text || "No resume provided.",
+      candidate_year_context: yearLabels[dreamSelection.year_level] || yearLabels["final"]
+    },
+    maxDurationSeconds: MAX_CALL_SECONDS
   });
 });
 
@@ -560,6 +564,9 @@ endBtn.addEventListener("click", () => {
   if (!currentUser) return;
   dreamSelection = await loadDreamSelection();
   activeSubscription = await loadSubscriptionCredits();
+  if (activeSubscription?.subscription_plans?.max_duration_minutes) {
+    MAX_CALL_SECONDS = activeSubscription.subscription_plans.max_duration_minutes * 60;
+  }
   if (!activeSubscription) startBtn.disabled = true;
 
   // Preload face detection models early (Premium only) so they're

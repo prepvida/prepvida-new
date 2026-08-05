@@ -120,6 +120,7 @@ dreamForm.addEventListener("submit", async (e) => {
     company_name: companyName,
     role_name: roleName,
     experience_level: experienceLevel,
+    year_level: document.getElementById("year-select").value,
     resume_text: extractedResumeText || null,
     is_active: true
   });
