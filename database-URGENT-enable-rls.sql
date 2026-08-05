@@ -1,0 +1,11 @@
+alter table public.profiles enable row level security;
+alter table public.subscription_plans enable row level security;
+alter table public.user_subscriptions enable row level security;
+alter table public.companies enable row level security;
+alter table public.roles enable row level security;
+alter table public.dream_selections enable row level security;
+alter table public.interview_sessions enable row level security;
+alter table public.interview_scores enable row level security;
+alter table public.payments enable row level security;
+alter table public.email_logs enable row level security;
+alter table public.contact_enquiries enable row level security;
