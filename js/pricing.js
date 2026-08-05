@@ -47,3 +47,28 @@ async function loadPlans() {
 }
 
 loadPlans();
+
+// ---------- Year tabs (Individual pricing framing per year) ----------
+const yearDescriptions = {
+  "1st": "Build your foundation early. Practice communication and basic interview skills before placement pressure hits.",
+  "2nd": "Start shaping your technical and behavioral readiness — get comfortable being interviewed well before final year.",
+  "3rd": "Sharpen up with realistic company-style rounds as internship and placement season approaches.",
+  "final": "Full placement-ready practice — company-specific rounds, resume-aware questions, and real interview pressure simulation."
+};
+
+const yearButtons = document.querySelectorAll(".year-tab-btn");
+const yearDescriptionBox = document.getElementById("year-description");
+
+function setActiveYear(year) {
+  yearButtons.forEach((btn) => {
+    btn.classList.toggle("btn-brass", btn.getAttribute("data-year") === year);
+  });
+  yearDescriptionBox.innerHTML = `<strong>${year === "final" ? "Final Year" : year.charAt(0).toUpperCase() + year.slice(1) + " Year"}:</strong> ${yearDescriptions[year]}`;
+}
+
+yearButtons.forEach((btn) => {
+  btn.addEventListener("click", () => setActiveYear(btn.getAttribute("data-year")));
+});
+
+// Default to Final Year selected on page load
+setActiveYear("final");
