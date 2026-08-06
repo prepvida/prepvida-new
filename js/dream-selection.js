@@ -34,22 +34,29 @@ function computeAtsScore(resumeText, roleName) {
   }
   const textLower = resumeText.toLowerCase();
   const matched = keywordSet.filter((kw) => textLower.includes(kw));
+  const missing = keywordSet.filter((kw) => !textLower.includes(kw));
   const score = Math.round((matched.length / keywordSet.length) * 100);
-  return { score, matched, total: keywordSet.length };
+  return { score, matched, missing, total: keywordSet.length };
 }
+
+let lastAtsResult = null;
 
 function showAtsScore() {
   const roleName = roleInput.value.trim();
   const atsBox = document.getElementById("ats-score-box");
   if (!extractedResumeText || !roleName) {
     atsBox.style.display = "none";
+    lastAtsResult = null;
     return;
   }
   const result = computeAtsScore(extractedResumeText, roleName);
+  lastAtsResult = result;
   atsBox.style.display = "block";
   atsBox.innerHTML = `
     <strong>Resume Match Score: ${result.score}%</strong>
-    <p style="margin-top:0.5rem; font-size:0.85rem;">Based on how many role-relevant keywords appear in your resume for "${roleName}". This gives you a sense of what the AI interviewer will likely focus on — matched terms: ${result.matched.length ? result.matched.join(", ") : "none found yet"}.</p>
+    <p style="margin-top:0.5rem; font-size:0.85rem;">Based on how many role-relevant keywords appear in your resume for "${roleName}".</p>
+    ${result.matched.length ? `<p style="font-size:0.82rem; margin-top:0.5rem;"><strong>Strong areas:</strong> ${result.matched.join(", ")}</p>` : ""}
+    ${result.missing.length ? `<p style="font-size:0.82rem; margin-top:0.5rem; color:var(--brass);"><strong>Consider highlighting or brushing up on:</strong> ${result.missing.join(", ")} — your interviewer will focus extra time helping you build confidence here.</p>` : ""}
   `;
 }
 
@@ -163,6 +170,7 @@ dreamForm.addEventListener("submit", async (e) => {
     experience_level: experienceLevel,
     year_level: document.getElementById("year-select").value,
     resume_text: extractedResumeText || null,
+    resume_gap_areas: lastAtsResult ? lastAtsResult.missing.join(", ") : null,
     is_active: true
   });
 

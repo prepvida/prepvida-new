@@ -19,3 +19,6 @@ create policy "Anyone can view badges" on public.public_badges
 
 -- Feature 4: Simple TPO/admin flag on profiles
 alter table public.profiles add column if not exists is_admin boolean default false;
+
+-- Resume gap coaching data
+alter table public.dream_selections add column if not exists resume_gap_areas text;

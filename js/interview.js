@@ -73,7 +73,7 @@ async function requireLogin() {
 async function loadDreamSelection() {
   const { data, error } = await supabaseClient
     .from("dream_selections")
-    .select("id, company_name, role_name, resume_text, year_level")
+    .select("id, company_name, role_name, resume_text, year_level, resume_gap_areas")
     .eq("user_id", currentUser.id)
     .eq("is_active", true)
     .order("created_at", { ascending: false })
@@ -549,7 +549,8 @@ startBtn.addEventListener("click", async () => {
       dream_role: dreamSelection.role_name || "",
       student_email: currentUser.email || "",
       resume_summary: dreamSelection.resume_text || "No resume provided.",
-      candidate_year_context: yearLabels[dreamSelection.year_level] || yearLabels["final"]
+      candidate_year_context: yearLabels[dreamSelection.year_level] || yearLabels["final"],
+      gap_areas: dreamSelection.resume_gap_areas || "None identified — resume appears well-aligned."
     },
     maxDurationSeconds: MAX_CALL_SECONDS
   });
