@@ -13,6 +13,46 @@ const resumeStatus = document.getElementById("resume-status");
 let extractedResumeText = "";
 let verifiedCompanyNames = new Set();
 
+// ---------- Feature 1: Resume/Role match score ----------
+// A transparent keyword-relevance check (not a hidden AI call, since an
+// AI key can't safely live in browser code) — still genuinely useful
+// signal for how well a resume's language matches the target role.
+const ROLE_KEYWORDS = {
+  "software": ["java","python","javascript","api","algorithm","data structure","git","sql","cloud","aws","backend","frontend","react","node","system design","debugging"],
+  "data": ["sql","python","excel","tableau","power bi","statistics","analysis","dashboard","reporting","data cleaning","visualization","machine learning"],
+  "product": ["roadmap","stakeholder","user research","metrics","prioritization","agile","sprint","strategy","launch","cross-functional"],
+  "marketing": ["campaign","seo","content","analytics","branding","social media","conversion","engagement","growth"],
+  "sales": ["pipeline","quota","crm","negotiation","client","revenue","lead generation","closing"],
+  "default": ["communication","teamwork","leadership","problem solving","project","collaboration","initiative"]
+};
+
+function computeAtsScore(resumeText, roleName) {
+  const roleLower = roleName.toLowerCase();
+  let keywordSet = ROLE_KEYWORDS.default;
+  for (const key in ROLE_KEYWORDS) {
+    if (roleLower.includes(key)) { keywordSet = ROLE_KEYWORDS[key]; break; }
+  }
+  const textLower = resumeText.toLowerCase();
+  const matched = keywordSet.filter((kw) => textLower.includes(kw));
+  const score = Math.round((matched.length / keywordSet.length) * 100);
+  return { score, matched, total: keywordSet.length };
+}
+
+function showAtsScore() {
+  const roleName = roleInput.value.trim();
+  const atsBox = document.getElementById("ats-score-box");
+  if (!extractedResumeText || !roleName) {
+    atsBox.style.display = "none";
+    return;
+  }
+  const result = computeAtsScore(extractedResumeText, roleName);
+  atsBox.style.display = "block";
+  atsBox.innerHTML = `
+    <strong>Resume Match Score: ${result.score}%</strong>
+    <p style="margin-top:0.5rem; font-size:0.85rem;">Based on how many role-relevant keywords appear in your resume for "${roleName}". This gives you a sense of what the AI interviewer will likely focus on — matched terms: ${result.matched.length ? result.matched.join(", ") : "none found yet"}.</p>
+  `;
+}
+
 // Live company lookup as the student types — confirms real companies
 // exist without hard-blocking smaller/newer ones not in the database.
 let companyLookupTimeout = null;
@@ -64,6 +104,7 @@ resumeInput.addEventListener("change", async () => {
     // Keep it reasonably short so it fits cleanly into the AI's prompt
     extractedResumeText = fullText.trim().slice(0, 3000);
     resumeStatus.textContent = `Resume loaded (${file.name}) — the AI will reference this during your interview.`;
+    showAtsScore();
   } catch (err) {
     console.error("Resume extraction failed:", err);
     resumeStatus.textContent = "Could not read this PDF. You can still continue without it.";
@@ -137,3 +178,5 @@ dreamForm.addEventListener("submit", async (e) => {
 (async () => {
   currentUser = await requireLogin();
 })();
+
+roleInput.addEventListener("blur", showAtsScore);

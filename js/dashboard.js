@@ -33,7 +33,7 @@ async function loadProfile() {
 async function loadSessionsAndScores() {
   const { data: sessions, error } = await supabaseClient
     .from("interview_sessions")
-    .select("id, round_type, interview_mode, status, started_at, completed_at, report_url, video_recording_url, interview_scores(score, max_score, metric_name)")
+    .select("id, round_type, interview_mode, status, started_at, completed_at, report_url, video_recording_url, dream_selections(company_name, role_name), interview_scores(score, max_score, metric_name)")
     .eq("user_id", currentUser.id)
     .order("started_at", { ascending: false });
 
@@ -82,6 +82,7 @@ async function loadSessionsAndScores() {
         <div style="display:flex; align-items:center; gap:1rem;">
           ${s.report_url ? `<a href="#" class="download-report-link" data-path="${s.report_url}" style="font-size:0.82rem; color:#9C7A2E; text-decoration:none; font-weight:600;">Download Report</a>` : ""}
           ${s.video_recording_url ? `<a href="#" class="download-video-link" data-path="${s.video_recording_url}" style="font-size:0.82rem; color:#9C7A2E; text-decoration:none; font-weight:600;">Download Video</a>` : ""}
+          <a href="#" class="make-badge-link" data-session-id="${s.id}" style="font-size:0.82rem; color:#9C7A2E; text-decoration:none; font-weight:600;">Get Shareable Badge</a>
           <div class="session-score">${sessionAvg !== null ? sessionAvg.toFixed(0) + "%" : "Pending"}</div>
         </div>
       </div>
@@ -118,6 +119,31 @@ async function loadSessionsAndScores() {
         return;
       }
       window.open(data.signedUrl, "_blank");
+    });
+  });
+
+  document.querySelectorAll(".make-badge-link").forEach((link) => {
+    link.addEventListener("click", async (e) => {
+      e.preventDefault();
+      const sessionId = link.getAttribute("data-session-id");
+      const session = sessions.find((s) => s.id === sessionId);
+      const companyName = session?.dream_selections?.company_name || "N/A";
+      const roleName = session?.dream_selections?.role_name || "N/A";
+
+      const { data, error } = await supabaseClient.from("public_badges").insert({
+        user_id: currentUser.id,
+        session_id: sessionId,
+        company_name: companyName,
+        role_name: roleName
+      }).select().single();
+
+      if (error || !data) {
+        alert("Could not create badge. Please try again.");
+        return;
+      }
+
+      const badgeUrl = `${window.location.origin}/badge.html?id=${data.id}`;
+      prompt("Your shareable badge link (copy and paste anywhere, e.g. LinkedIn):", badgeUrl);
     });
   });
 }

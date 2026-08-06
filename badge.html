@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PrepVida — Verified Interview Badge</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="brand"><span class="brand-mark"></span> PrepVida</a>
+</header>
+
+<main class="narrow-shell">
+  <div id="badge-content">
+    <p>Loading badge...</p>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="footer-note">© 2026 PrepVida.in Inc.</div>
+</footer>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script>
+(async () => {
+  const params = new URLSearchParams(window.location.search);
+  const badgeId = params.get("id");
+  const content = document.getElementById("badge-content");
+
+  if (!badgeId) {
+    content.innerHTML = "<p>Badge not found.</p>";
+    return;
+  }
+
+  const { data, error } = await supabaseClient
+    .from("public_badges")
+    .select("*")
+    .eq("id", badgeId)
+    .maybeSingle();
+
+  if (error || !data) {
+    content.innerHTML = "<p>Badge not found.</p>";
+    return;
+  }
+
+  const dateStr = new Date(data.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+
+  content.innerHTML = `
+    <div class="card" style="text-align:center; padding:2.5rem 2rem;">
+      <div class="brand-mark" style="width:20px; height:20px; margin:0 auto 1rem auto;"></div>
+      <div class="eyebrow">PrepVida Verified Candidate</div>
+      <h2>${data.role_name}</h2>
+      <p style="color:var(--brass); font-weight:600;">${data.company_name}</p>
+      <p style="margin-top:1.5rem;">This candidate completed a PrepVida AI-conducted mock interview simulating a real ${data.company_name} interview process for the ${data.role_name} role.</p>
+      <p style="font-size:0.8rem; opacity:0.5; margin-top:1.5rem;">Verified ${dateStr}</p>
+    </div>
+  `;
+})();
+</script>
+</body>
+</html>

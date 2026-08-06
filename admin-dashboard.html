@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PrepVida — Institutional Dashboard</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="brand"><span class="brand-mark"></span> PrepVida</a>
+</header>
+
+<main class="page-shell">
+  <div class="eyebrow">TPO / Placement Cell</div>
+  <h1>Batch Overview</h1>
+  <div id="admin-content"><p>Checking access...</p></div>
+</main>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script>
+(async () => {
+  const content = document.getElementById("admin-content");
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (!session) { window.location.href = "index.html"; return; }
+
+  const { data: profile } = await supabaseClient
+    .from("profiles").select("is_admin").eq("id", session.user.id).maybeSingle();
+
+  if (!profile?.is_admin) {
+    content.innerHTML = "<p>This dashboard is restricted to authorized institutional accounts. Contact hello@prepvida.in for access.</p>";
+    return;
+  }
+
+  const { data: sessions } = await supabaseClient
+    .from("interview_sessions")
+    .select("id, status, interview_scores(score, max_score)");
+
+  const total = sessions?.length || 0;
+  const completed = sessions?.filter(s => s.status === "completed").length || 0;
+
+  let totalPct = 0, count = 0;
+  sessions?.forEach(s => {
+    (s.interview_scores || []).forEach(sc => {
+      totalPct += (sc.score / sc.max_score) * 100;
+      count++;
+    });
+  });
+  const avgScore = count ? (totalPct / count) : null;
+
+  content.innerHTML = `
+    <div class="stat-row">
+      <div class="stat-box"><div class="stat-num">${total}</div><div class="stat-label">Total Interviews</div></div>
+      <div class="stat-box"><div class="stat-num">${completed}</div><div class="stat-label">Completed</div></div>
+      <div class="stat-box"><div class="stat-num">${avgScore !== null ? avgScore.toFixed(0) + "%" : "N/A"}</div><div class="stat-label">Avg Score</div></div>
+    </div>
+    <p style="margin-top:2rem; font-size:0.85rem; opacity:0.6;">Note: this is a starter version. Per-student breakdowns, readiness-band grouping, and batch filtering are planned next steps.</p>
+  `;
+})();
+</script>
+</body>
+</html>
