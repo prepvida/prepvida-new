@@ -59,7 +59,8 @@ let dreamSelection = null;
 let currentSessionId = null;
 let activeSubscription = null;
 let vapi = null;
-let transcriptLines = []; // plain text log, used to build the PDF report
+let transcriptLines = [];
+let codingMetrics = []; // tracks typing speed per code submission
 
 async function requireLogin() {
   const { data: { session } } = await supabaseClient.auth.getSession();
@@ -347,6 +348,10 @@ async function generateAndUploadReport() {
       `Dream Role: ${dreamSelection?.role_name || "N/A"}`,
       `Date: ${dateStr}`
     ];
+    if (codingMetrics.length > 0) {
+      const avgWpm = Math.round(codingMetrics.reduce((sum, m) => sum + m.wpm, 0) / codingMetrics.length);
+      summaryLines.push(`Average Typing Speed: ${avgWpm} WPM`);
+    }
     summaryLines.forEach((line) => {
       doc.text(line, margin, y);
       y += 7;
@@ -423,9 +428,33 @@ openCodePanelLink.addEventListener("click", (e) => {
   codePanel.style.display = codePanel.style.display === "none" ? "block" : "none";
 });
 
+// ---------- Typing speed tracking ----------
+let codeTypingStartTime = null;
+codeInput.addEventListener("input", () => {
+  if (!codeTypingStartTime && codeInput.value.length > 0) {
+    codeTypingStartTime = Date.now();
+  }
+  if (codeInput.value.length === 0) {
+    codeTypingStartTime = null; // reset if cleared
+  }
+});
+
+function calculateTypingSpeed(text) {
+  if (!codeTypingStartTime) return null;
+  const elapsedMinutes = (Date.now() - codeTypingStartTime) / 60000;
+  const wordCount = text.trim().split(/\s+/).length;
+  if (elapsedMinutes < 0.05) return null; // too short to measure meaningfully
+  return Math.round(wordCount / elapsedMinutes);
+}
+
 submitCodeBtn.addEventListener("click", () => {
   const code = codeInput.value.trim();
   if (!code || !vapi) return;
+
+  const wpm = calculateTypingSpeed(code);
+  if (wpm) {
+    codingMetrics.push({ wpm, charCount: code.length, timestamp: new Date().toISOString() });
+  }
 
   // Feed the code into the live call as if the candidate said it, so the
   // AI interviewer can review and respond to it naturally.
@@ -438,9 +467,10 @@ submitCodeBtn.addEventListener("click", () => {
   });
 
   addTranscriptLine("You (code submitted)", code);
-  codeSubmitStatus.textContent = "Sent to interviewer ✓";
-  setTimeout(() => { codeSubmitStatus.textContent = ""; }, 3000);
+  codeSubmitStatus.textContent = wpm ? `Sent to interviewer ✓ (typing speed: ~${wpm} WPM)` : "Sent to interviewer ✓";
+  setTimeout(() => { codeSubmitStatus.textContent = ""; }, 4000);
   codeInput.value = "";
+  codeTypingStartTime = null;
 });
 
 startBtn.addEventListener("click", async () => {
