@@ -11,6 +11,7 @@ const INSTAMOJO_LINKS = {
 };
 
 let currentYear = "final";
+let billingCycle = "monthly"; // "monthly" | "yearly"
 
 async function loadPlans(year) {
   const container = document.getElementById("plans-container");
@@ -34,12 +35,19 @@ async function loadPlans(year) {
     const features = Array.isArray(plan.features) ? plan.features : JSON.parse(plan.features || "[]");
     const checkoutUrl = INSTAMOJO_LINKS[`${year}-${plan.name}`] || "#";
 
+    // Yearly = 12x the credits, priced as 10x the monthly price (10% discount,
+    // kept conservative so every plan stays safely within our margin band)
+    const displayPrice = billingCycle === "yearly" ? Math.round(plan.price * 10) : plan.price;
+    const displayCredits = billingCycle === "yearly" ? plan.interview_credits * 12 : plan.interview_credits;
+    const cycleLabel = billingCycle === "yearly" ? "year" : plan.billing_cycle;
+
     return `
       <div class="plan-card ${isFeatured ? "featured" : ""}">
         ${isFeatured ? '<span class="plan-tag">Most Popular</span>' : ""}
         <h3>${plan.name}</h3>
         <p>${plan.description || ""}</p>
-        <div class="plan-price">₹${Number(plan.price)}<span> / ${plan.billing_cycle}</span></div>
+        <div class="plan-price">₹${displayPrice}<span> / ${cycleLabel}</span></div>
+        <p style="font-size:0.82rem; color:var(--brass);">${displayCredits} interviews included</p>
         <ul class="plan-features">
           ${features.map((f) => `<li>${f}</li>`).join("")}
         </ul>
@@ -48,6 +56,23 @@ async function loadPlans(year) {
     `;
   }).join("");
 }
+
+const monthlyBtn = document.getElementById("billing-monthly-btn");
+const yearlyBtn = document.getElementById("billing-yearly-btn");
+
+monthlyBtn.addEventListener("click", () => {
+  billingCycle = "monthly";
+  monthlyBtn.classList.add("btn-brass");
+  yearlyBtn.classList.remove("btn-brass");
+  loadPlans(currentYear);
+});
+
+yearlyBtn.addEventListener("click", () => {
+  billingCycle = "yearly";
+  yearlyBtn.classList.add("btn-brass");
+  monthlyBtn.classList.remove("btn-brass");
+  loadPlans(currentYear);
+});
 
 // ---------- Year tabs ----------
 const yearDescriptions = {
