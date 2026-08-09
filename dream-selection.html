@@ -35,12 +35,32 @@
       <option value="final" selected>Final Year (placement season)</option>
     </select>
 
-    <label for="company-input">Dream company</label>
+    <div id="skill-mode-fields">
+      <label for="skill-select">Which skill do you want to practice deeply?</label>
+      <input type="text" id="skill-select" list="skill-suggestions" placeholder="e.g. React.js, Cybersecurity, Digital Marketing, Public Speaking — anything">
+      <datalist id="skill-suggestions">
+        <option value="AI / Machine Learning">
+        <option value="Data Structures & Algorithms">
+        <option value="System Design">
+        <option value="Web Development">
+        <option value="Data Analysis">
+        <option value="Communication & Soft Skills">
+        <option value="Product Management">
+        <option value="Digital Marketing">
+        <option value="Cybersecurity">
+        <option value="Cloud Computing">
+        <option value="UI/UX Design">
+      </datalist>
+    </div>
+
+    <div id="company-mode-fields">
+      <label for="company-input">Dream company</label>
     <input type="text" id="company-input" list="company-suggestions" required placeholder="e.g. Google, Zomato, a local startup, anything">
     <datalist id="company-suggestions"></datalist>
 
     <label for="role-input">Dream role</label>
     <input type="text" id="role-input" required placeholder="e.g. Software Engineer, Product Manager, Sales Associate">
+    </div>
 
     <label for="experience-select">Experience level</label>
     <select id="experience-select">

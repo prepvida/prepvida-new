@@ -74,7 +74,7 @@ async function requireLogin() {
 async function loadDreamSelection() {
   const { data, error } = await supabaseClient
     .from("dream_selections")
-    .select("id, company_name, role_name, resume_text, year_level, resume_gap_areas")
+    .select("id, company_name, role_name, resume_text, year_level, resume_gap_areas, skill_category")
     .eq("user_id", currentUser.id)
     .eq("is_active", true)
     .order("created_at", { ascending: false })
@@ -413,6 +413,32 @@ async function generateAndUploadReport() {
   }
 }
 
+// ---------- Pre-interview Typing Test (separate from interview time/cost) ----------
+const typingTestInput = document.getElementById("typing-test-input");
+const typingTestResult = document.getElementById("typing-test-result");
+const skipTypingTestBtn = document.getElementById("skip-typing-test-btn");
+const typingTestBox = document.getElementById("typing-test-box");
+const typingSample = document.getElementById("typing-sample").textContent;
+
+let preInterviewTypingStart = null;
+let preInterviewWpm = null;
+
+typingTestInput.addEventListener("input", () => {
+  if (!preInterviewTypingStart && typingTestInput.value.length > 0) {
+    preInterviewTypingStart = Date.now();
+  }
+  if (typingTestInput.value.trim() === typingSample.trim()) {
+    const elapsedMinutes = (Date.now() - preInterviewTypingStart) / 60000;
+    const wordCount = typingSample.split(/\s+/).length;
+    preInterviewWpm = Math.max(1, Math.round(wordCount / elapsedMinutes));
+    typingTestResult.textContent = `Typing speed: ~${preInterviewWpm} WPM. Nice — you can continue whenever you're ready.`;
+  }
+});
+
+skipTypingTestBtn.addEventListener("click", () => {
+  typingTestBox.style.display = "none";
+});
+
 function addTranscriptLine(speaker, text) {
   transcriptBox.style.display = "block";
   const line = document.createElement("div");
@@ -498,7 +524,6 @@ startBtn.addEventListener("click", async () => {
     callStatus.textContent = "Interview in progress. Speak naturally.";
     startBtn.style.display = "none";
     endBtn.style.display = "inline-block";
-    startCallTimer();
     codePanelToggle.style.display = "block";
 
     // Video recording is a Premium-plan feature only
@@ -508,11 +533,19 @@ startBtn.addEventListener("click", async () => {
     }
   });
 
+  let firstGreetingDone = false;
+
   vapi.on("speech-start", () => {
     avatarCircle.classList.add("speaking");
   });
   vapi.on("speech-end", () => {
     avatarCircle.classList.remove("speaking");
+    // Start the visible countdown only after the AI's opening greeting
+    // finishes, so the timer reflects real Q&A time, not the greeting
+    if (!firstGreetingDone) {
+      firstGreetingDone = true;
+      startCallTimer();
+    }
   });
 
   // Live transcript, if the SDK provides message events
@@ -580,9 +613,10 @@ startBtn.addEventListener("click", async () => {
       student_email: currentUser.email || "",
       resume_summary: dreamSelection.resume_text || "No resume provided.",
       candidate_year_context: yearLabels[dreamSelection.year_level] || yearLabels["final"],
-      gap_areas: dreamSelection.resume_gap_areas || "None identified — resume appears well-aligned."
+      gap_areas: dreamSelection.resume_gap_areas || "None identified — resume appears well-aligned.",
+      skill_focus: dreamSelection.skill_category || ""
     },
-    maxDurationSeconds: MAX_CALL_SECONDS
+    maxDurationSeconds: MAX_CALL_SECONDS + 30 // +30s buffer covers the opening greeting, so the on-screen timer truly matches real available time
   });
 });
 

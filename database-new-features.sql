@@ -22,3 +22,6 @@ alter table public.profiles add column if not exists is_admin boolean default fa
 
 -- Resume gap coaching data
 alter table public.dream_selections add column if not exists resume_gap_areas text;
+
+-- Skill-based practice mode for Early/Pre-Final years
+alter table public.dream_selections add column if not exists skill_category text;

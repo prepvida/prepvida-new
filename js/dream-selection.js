@@ -13,6 +13,23 @@ const resumeStatus = document.getElementById("resume-status");
 let extractedResumeText = "";
 let verifiedCompanyNames = new Set();
 
+// ---------- Skill mode (Early/Pre-Final) vs Company mode (Final Year) ----------
+const yearSelectEl = document.getElementById("year-select");
+const skillModeFields = document.getElementById("skill-mode-fields");
+const companyModeFields = document.getElementById("company-mode-fields");
+const skillSelect = document.getElementById("skill-select");
+
+function updateModeVisibility() {
+  const isFinalYear = yearSelectEl.value === "final";
+  skillModeFields.style.display = isFinalYear ? "none" : "block";
+  companyModeFields.style.display = isFinalYear ? "block" : "none";
+  // Only require the fields actually visible/relevant
+  companyInput.required = isFinalYear;
+  roleInput.required = isFinalYear;
+}
+yearSelectEl.addEventListener("change", updateModeVisibility);
+updateModeVisibility();
+
 // ---------- Feature 1: Resume/Role match score ----------
 // A transparent keyword-relevance check (not a hidden AI call, since an
 // AI key can't safely live in browser code) — still genuinely useful
@@ -138,23 +155,29 @@ dreamForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   if (!currentUser) return;
 
-  const companyName = companyInput.value.trim();
-  const roleName = roleInput.value.trim();
+  const yearLevel = document.getElementById("year-select").value;
+  const isFinalYear = yearLevel === "final";
   const experienceLevel = document.getElementById("experience-select").value;
 
-  if (!companyName || !roleName) {
-    showStatus("Please enter both a company and a role.", "error");
-    return;
-  }
+  let companyName = null, roleName = null, skillCategory = null;
 
-  // Soft check — if the company wasn't found in our lookup, gently confirm
-  // rather than blocking (smaller/newer real companies may not be listed)
-  const isVerified = verifiedCompanyNames.has(companyName.toLowerCase());
-  if (!isVerified && verifiedCompanyNames.size > 0) {
-    const proceed = confirm(
-      `We couldn't verify "${companyName}" as a known company. If it's a real company (even a small one), that's fine — click OK to continue anyway. Click Cancel to double-check the spelling.`
-    );
-    if (!proceed) return;
+  if (isFinalYear) {
+    companyName = companyInput.value.trim();
+    roleName = roleInput.value.trim();
+    if (!companyName || !roleName) {
+      showStatus("Please enter both a company and a role.", "error");
+      return;
+    }
+    // Soft check — if the company wasn't found in our lookup, gently confirm
+    const isVerified = verifiedCompanyNames.has(companyName.toLowerCase());
+    if (!isVerified && verifiedCompanyNames.size > 0) {
+      const proceed = confirm(
+        `We couldn't verify "${companyName}" as a known company. If it's a real company (even a small one), that's fine — click OK to continue anyway. Click Cancel to double-check the spelling.`
+      );
+      if (!proceed) return;
+    }
+  } else {
+    skillCategory = skillSelect.value;
   }
 
   // Deactivate any previous selection, then save this one as active
@@ -167,8 +190,9 @@ dreamForm.addEventListener("submit", async (e) => {
     user_id: currentUser.id,
     company_name: companyName,
     role_name: roleName,
+    skill_category: skillCategory,
     experience_level: experienceLevel,
-    year_level: document.getElementById("year-select").value,
+    year_level: yearLevel,
     resume_text: extractedResumeText || null,
     resume_gap_areas: lastAtsResult ? lastAtsResult.missing.join(", ") : null,
     is_active: true
