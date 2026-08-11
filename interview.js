@@ -1,27 +1,66 @@
 // =====================================================================
-// INTERVIEW PAGE LOGIC — Vapi.ai official widget + plan credit enforcement
-// Uses the <vapi-widget> custom element (loaded via widget.umd.js in
-// interview.html) instead of manually driving the Vapi class — this is
-// Vapi's own officially maintained, plain-HTML-friendly integration.
+// INTERVIEW PAGE LOGIC — Vapi.ai Web SDK + plan credit enforcement
+// Uses the Vapi class directly (via a plain-browser UMD build) instead
+// of the official widget component, which has a known bug that breaks
+// assistant-overrides (personalization) requests.
 // =====================================================================
 
-// FILL THESE IN from your Vapi.ai dashboard (vapi.ai -> API Keys):
 const VAPI_PUBLIC_KEY = "f669166b-f926-4d68-90a3-0ed7461ecaef";
 const VAPI_ASSISTANT_ID = "6b84ec28-24b9-4478-b3e6-0604a9093d73";
 // =====================================================================
 
+const startBtn = document.getElementById("start-call-btn");
+const endBtn = document.getElementById("end-call-btn");
 const callStatus = document.getElementById("call-status");
 const interviewTitle = document.getElementById("interview-title");
 const interviewSubtitle = document.getElementById("interview-subtitle");
 const creditsNote = document.getElementById("credits-note");
 const avatarCircle = document.getElementById("avatar-circle");
 const studentWebcam = document.getElementById("student-webcam");
-const widgetContainer = document.getElementById("vapi-widget-container");
+const webcamFallback = document.getElementById("webcam-fallback");
+const transcriptBox = document.getElementById("transcript-box");
+const callTimer = document.getElementById("call-timer");
+const monitoringNote = document.getElementById("monitoring-note");
+const codePanelToggle = document.getElementById("code-panel-toggle");
+const openCodePanelLink = document.getElementById("open-code-panel");
+const codePanel = document.getElementById("code-panel");
+const codeInput = document.getElementById("code-input");
+const submitCodeBtn = document.getElementById("submit-code-btn");
+const codeSubmitStatus = document.getElementById("code-submit-status");
+
+let MAX_CALL_SECONDS = 20 * 60; // default; actual value set per plan once loaded
+let timerInterval = null;
+
+function startCallTimer() {
+  let secondsLeft = MAX_CALL_SECONDS;
+  callTimer.style.display = "block";
+  updateTimerDisplay(secondsLeft);
+  timerInterval = setInterval(() => {
+    secondsLeft--;
+    updateTimerDisplay(secondsLeft);
+    if (secondsLeft <= 0) stopCallTimer();
+  }, 1000);
+}
+
+function updateTimerDisplay(secondsLeft) {
+  const mins = Math.max(0, Math.floor(secondsLeft / 60));
+  const secs = Math.max(0, secondsLeft % 60);
+  callTimer.textContent = `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
+function stopCallTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = null;
+  callTimer.style.display = "none";
+}
 
 let currentUser = null;
 let dreamSelection = null;
 let currentSessionId = null;
 let activeSubscription = null;
+let vapi = null;
+let transcriptLines = [];
+let codingMetrics = []; // tracks typing speed per code submission
 
 async function requireLogin() {
   const { data: { session } } = await supabaseClient.auth.getSession();
@@ -35,7 +74,7 @@ async function requireLogin() {
 async function loadDreamSelection() {
   const { data, error } = await supabaseClient
     .from("dream_selections")
-    .select("id, company_name, role_name")
+    .select("id, company_name, role_name, resume_text, year_level, resume_gap_areas, skill_category")
     .eq("user_id", currentUser.id)
     .eq("is_active", true)
     .order("created_at", { ascending: false })
@@ -45,6 +84,7 @@ async function loadDreamSelection() {
   if (error || !data) {
     interviewTitle.textContent = "No dream company/role selected yet";
     interviewSubtitle.innerHTML = 'Please <a href="dream-selection.html">choose your dream company and role</a> first.';
+    startBtn.disabled = true;
     return null;
   }
 
@@ -56,7 +96,7 @@ async function loadDreamSelection() {
 async function loadSubscriptionCredits() {
   const { data, error } = await supabaseClient
     .from("user_subscriptions")
-    .select("id, credits_remaining, status, subscription_plans(name)")
+    .select("id, credits_remaining, status, subscription_plans(name, interview_mode, max_duration_minutes)")
     .eq("user_id", currentUser.id)
     .eq("status", "active")
     .order("start_date", { ascending: false })
@@ -66,12 +106,14 @@ async function loadSubscriptionCredits() {
   if (error || !data) {
     creditsNote.innerHTML = 'You don\'t have an active plan yet. <a href="pricing.html">Choose a plan</a> to start interviewing.';
     creditsNote.style.display = "block";
+    startBtn.disabled = true;
     return null;
   }
 
   if (data.credits_remaining <= 0) {
     creditsNote.innerHTML = `You've used all your interviews on the ${data.subscription_plans?.name || "current"} plan. <a href="pricing.html">Upgrade or renew</a> to continue.`;
     creditsNote.style.display = "block";
+    startBtn.disabled = true;
     return null;
   }
 
@@ -82,19 +124,16 @@ async function loadSubscriptionCredits() {
 
 async function deductOneCredit() {
   if (!activeSubscription) return false;
-  const newCount = activeSubscription.credits_remaining - 1;
 
-  const { error } = await supabaseClient
-    .from("user_subscriptions")
-    .update({ credits_remaining: newCount })
-    .eq("id", activeSubscription.id)
-    .gt("credits_remaining", 0);
+  const { data, error } = await supabaseClient.rpc("deduct_interview_credit", {
+    subscription_id: activeSubscription.id
+  });
 
-  if (error) {
+  if (error || !data) {
     console.error(error);
     return false;
   }
-  activeSubscription.credits_remaining = newCount;
+  activeSubscription.credits_remaining -= 1;
   return true;
 }
 
@@ -130,9 +169,84 @@ async function startWebcamPreview() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
     studentWebcam.srcObject = stream;
+    webcamFallback.style.display = "none";
   } catch (err) {
     console.warn("Webcam not available:", err);
+    webcamFallback.style.display = "block";
   }
+}
+
+// ---------- Behavior monitoring (Premium plan only) ----------
+// Uses face-api.js to periodically check the webcam feed for: no face
+// present (candidate left frame) or multiple faces (someone else in
+// frame). This is best-effort — if the library fails to load for any
+// reason, monitoring simply doesn't run and the interview continues
+// normally without it.
+
+let monitoringInterval = null;
+let faceModelsLoaded = false;
+let noFaceCount = 0;
+let multiFaceCount = 0;
+let totalChecks = 0;
+
+async function loadFaceModels() {
+  if (typeof faceapi === "undefined") {
+    console.warn("face-api.js did not load — behavior monitoring disabled.");
+    return false;
+  }
+  try {
+    const MODEL_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model";
+    await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+    return true;
+  } catch (err) {
+    console.warn("Could not load face detection models:", err);
+    return false;
+  }
+}
+
+function startBehaviorMonitoring() {
+  if (!faceModelsLoaded || !studentWebcam.srcObject) return;
+
+  monitoringNote.style.display = "block";
+  noFaceCount = 0;
+  multiFaceCount = 0;
+  totalChecks = 0;
+
+  monitoringInterval = setInterval(async () => {
+    try {
+      const detections = await faceapi.detectAllFaces(
+        studentWebcam,
+        new faceapi.TinyFaceDetectorOptions()
+      );
+      totalChecks++;
+      if (detections.length === 0) noFaceCount++;
+      if (detections.length > 1) multiFaceCount++;
+    } catch (err) {
+      console.warn("Face check failed:", err);
+    }
+  }, 4000); // check every 4 seconds — light enough not to affect performance
+}
+
+function stopBehaviorMonitoringAndGetSummary() {
+  if (monitoringInterval) clearInterval(monitoringInterval);
+  monitoringInterval = null;
+  monitoringNote.style.display = "none";
+
+  if (totalChecks === 0) return { flag: false, notes: null };
+
+  const noFaceRatio = noFaceCount / totalChecks;
+  const flags = [];
+  if (noFaceRatio > 0.25) {
+    flags.push(`Candidate was out of frame for approximately ${Math.round(noFaceRatio * 100)}% of the interview.`);
+  }
+  if (multiFaceCount > 0) {
+    flags.push(`Multiple faces were detected in frame ${multiFaceCount} time(s) during the interview.`);
+  }
+
+  return {
+    flag: flags.length > 0,
+    notes: flags.length > 0 ? flags.join(" ") : "No irregular behavior detected."
+  };
 }
 
 function stopWebcamPreview() {
@@ -142,87 +256,387 @@ function stopWebcamPreview() {
   }
 }
 
-// Renders the official Vapi widget as a plain custom element — this
-// handles the actual call connection reliably, no manual SDK wiring.
-// IMPORTANT: the widget script scans the page for <vapi-widget> tags
-// ONCE when it loads, so the element must already exist in the DOM
-// BEFORE the script is added — hence we load the script dynamically
-// here, after inserting the element, rather than via a static <script>
-// tag in the HTML head.
-function renderVapiWidget() {
-  const widget = document.createElement("vapi-widget");
-  widget.setAttribute("public-key", VAPI_PUBLIC_KEY);
-  widget.setAttribute("assistant-id", VAPI_ASSISTANT_ID);
-  widget.setAttribute("mode", "voice");
-  widget.setAttribute("size", "full");
-  widget.setAttribute("theme", "light");
-  widget.setAttribute("accent-color", "#C79A3E");
-  widget.setAttribute("cta-button-color", "#10192B");
-  widget.setAttribute("cta-button-text-color", "#F6F3EC");
-  widget.setAttribute("start-button-text", "Start Interview");
-  widget.setAttribute("end-button-text", "End Interview");
-  widget.setAttribute("title", "AI Interviewer");
-  widget.setAttribute("assistant-overrides", JSON.stringify({
+// ---------- Video recording (Premium plan only) ----------
+let mediaRecorder = null;
+let recordedChunks = [];
+
+function startVideoRecording() {
+  if (!studentWebcam.srcObject) return; // no camera, nothing to record
+  recordedChunks = [];
+  try {
+    mediaRecorder = new MediaRecorder(studentWebcam.srcObject, { mimeType: "video/webm" });
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) recordedChunks.push(e.data);
+    };
+    mediaRecorder.start();
+  } catch (err) {
+    console.warn("Could not start video recording:", err);
+  }
+}
+
+async function stopAndUploadVideoRecording() {
+  if (!mediaRecorder || mediaRecorder.state === "inactive") return null;
+
+  return new Promise((resolve) => {
+    mediaRecorder.onstop = async () => {
+      try {
+        const blob = new Blob(recordedChunks, { type: "video/webm" });
+        const fileName = `${currentUser.id}/${currentSessionId || Date.now()}.webm`;
+
+        const { error: uploadError } = await supabaseClient.storage
+          .from("interview-recordings")
+          .upload(fileName, blob, { contentType: "video/webm" });
+
+        if (uploadError) {
+          console.error("Video upload failed:", uploadError);
+          resolve(null);
+          return;
+        }
+
+        // Bucket is private — store the path only; signed links are
+        // generated fresh (and briefly) whenever someone views the dashboard.
+        resolve(fileName);
+      } catch (err) {
+        console.error("Video processing failed:", err);
+        resolve(null);
+      }
+    };
+    mediaRecorder.stop();
+  });
+}
+
+function stopWebcamPreview() {
+  if (studentWebcam.srcObject) {
+    studentWebcam.srcObject.getTracks().forEach((track) => track.stop());
+    studentWebcam.srcObject = null;
+  }
+}
+
+// ---------- PDF Interview Report ----------
+// Generates a branded PDF summary (company/role, date, full transcript),
+// triggers a download for the student, and uploads a copy to Supabase
+// Storage so it's retrievable later from the dashboard.
+async function generateAndUploadReport() {
+  if (typeof window.jspdf === "undefined") {
+    console.warn("jsPDF did not load — skipping report generation.");
+    return null;
+  }
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 20;
+    let y = 20;
+
+    // Header
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text("PrepVida — Interview Report", margin, y);
+    y += 10;
+    doc.setDrawColor(200);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 10;
+
+    // Summary details
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    const dateStr = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+    const summaryLines = [
+      `Candidate: ${currentUser.email || "N/A"}`,
+      `Dream Company: ${dreamSelection?.company_name || "N/A"}`,
+      `Dream Role: ${dreamSelection?.role_name || "N/A"}`,
+      `Date: ${dateStr}`
+    ];
+    if (codingMetrics.length > 0) {
+      const avgWpm = Math.round(codingMetrics.reduce((sum, m) => sum + m.wpm, 0) / codingMetrics.length);
+      summaryLines.push(`Average Typing Speed: ${avgWpm} WPM`);
+    }
+    summaryLines.forEach((line) => {
+      doc.text(line, margin, y);
+      y += 7;
+    });
+    y += 5;
+
+    // Transcript section
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text("Full Transcript", margin, y);
+    y += 8;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+
+    const maxWidth = pageWidth - margin * 2;
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    transcriptLines.forEach((line) => {
+      const wrapped = doc.splitTextToSize(line, maxWidth);
+      wrapped.forEach((wrappedLine) => {
+        if (y > pageHeight - 20) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.text(wrappedLine, margin, y);
+        y += 6;
+      });
+      y += 2;
+    });
+
+    // Footer note
+    if (y > pageHeight - 20) { doc.addPage(); y = 20; }
+    y += 10;
+    doc.setFontSize(9);
+    doc.setTextColor(120);
+    doc.text("Generated by PrepVida.in — AI Interview Practice", margin, pageHeight - 10);
+
+    // Trigger download for the student
+    const fileName = `PrepVida-Interview-${dreamSelection?.company_name || "Report"}.pdf`;
+    doc.save(fileName);
+
+    // Also upload a copy to Supabase Storage for later retrieval
+    const pdfBlob = doc.output("blob");
+    const storagePath = `${currentUser.id}/${currentSessionId || Date.now()}.pdf`;
+
+    const { error: uploadError } = await supabaseClient.storage
+      .from("interview-reports")
+      .upload(storagePath, pdfBlob, { contentType: "application/pdf" });
+
+    if (uploadError) {
+      console.error("Report upload failed:", uploadError);
+      return null;
+    }
+
+    return storagePath;
+  } catch (err) {
+    console.error("PDF generation failed:", err);
+    return null;
+  }
+}
+
+// ---------- Pre-interview Typing Test (separate from interview time/cost) ----------
+const typingTestInput = document.getElementById("typing-test-input");
+const typingTestResult = document.getElementById("typing-test-result");
+const skipTypingTestBtn = document.getElementById("skip-typing-test-btn");
+const typingTestBox = document.getElementById("typing-test-box");
+const typingSample = document.getElementById("typing-sample").textContent;
+
+let preInterviewTypingStart = null;
+let preInterviewWpm = null;
+
+typingTestInput.addEventListener("input", () => {
+  if (!preInterviewTypingStart && typingTestInput.value.length > 0) {
+    preInterviewTypingStart = Date.now();
+  }
+  if (typingTestInput.value.trim() === typingSample.trim()) {
+    const elapsedMinutes = (Date.now() - preInterviewTypingStart) / 60000;
+    const wordCount = typingSample.split(/\s+/).length;
+    preInterviewWpm = Math.max(1, Math.round(wordCount / elapsedMinutes));
+    typingTestResult.textContent = `Typing speed: ~${preInterviewWpm} WPM. Nice — you can continue whenever you're ready.`;
+  }
+});
+
+skipTypingTestBtn.addEventListener("click", () => {
+  typingTestBox.style.display = "none";
+});
+
+function addTranscriptLine(speaker, text) {
+  transcriptBox.style.display = "block";
+  const line = document.createElement("div");
+  line.style.marginBottom = "0.5rem";
+  line.innerHTML = `<strong>${speaker}:</strong> ${text}`;
+  transcriptBox.appendChild(line);
+  transcriptBox.scrollTop = transcriptBox.scrollHeight;
+  transcriptLines.push(`${speaker}: ${text}`);
+}
+
+openCodePanelLink.addEventListener("click", (e) => {
+  e.preventDefault();
+  codePanel.style.display = codePanel.style.display === "none" ? "block" : "none";
+});
+
+// ---------- Typing speed tracking ----------
+let codeTypingStartTime = null;
+codeInput.addEventListener("input", () => {
+  if (!codeTypingStartTime && codeInput.value.length > 0) {
+    codeTypingStartTime = Date.now();
+  }
+  if (codeInput.value.length === 0) {
+    codeTypingStartTime = null; // reset if cleared
+  }
+});
+
+function calculateTypingSpeed(text) {
+  if (!codeTypingStartTime) return null;
+  const elapsedMinutes = (Date.now() - codeTypingStartTime) / 60000;
+  const wordCount = text.trim().split(/\s+/).length;
+  if (elapsedMinutes < 0.05) return null; // too short to measure meaningfully
+  return Math.round(wordCount / elapsedMinutes);
+}
+
+submitCodeBtn.addEventListener("click", () => {
+  const code = codeInput.value.trim();
+  if (!code || !vapi) return;
+
+  const wpm = calculateTypingSpeed(code);
+  if (wpm) {
+    codingMetrics.push({ wpm, charCount: code.length, timestamp: new Date().toISOString() });
+  }
+
+  // Feed the code into the live call as if the candidate said it, so the
+  // AI interviewer can review and respond to it naturally.
+  vapi.send({
+    type: "add-message",
+    message: {
+      role: "user",
+      content: `Here is my code submission for the coding question:\n\n${code}`
+    }
+  });
+
+  addTranscriptLine("You (code submitted)", code);
+  codeSubmitStatus.textContent = wpm ? `Sent to interviewer ✓ (typing speed: ~${wpm} WPM)` : "Sent to interviewer ✓";
+  setTimeout(() => { codeSubmitStatus.textContent = ""; }, 4000);
+  codeInput.value = "";
+  codeTypingStartTime = null;
+});
+
+startBtn.addEventListener("click", async () => {
+  if (!dreamSelection || !activeSubscription) return;
+  if (startBtn.disabled) return; // guard against double-clicks
+  startBtn.disabled = true;
+
+  await startWebcamPreview();
+  callStatus.textContent = "Connecting to your AI interviewer...";
+
+  vapi = new Vapi(VAPI_PUBLIC_KEY);
+  let creditDeducted = false;
+
+  vapi.on("call-start", async () => {
+    // Only deduct the credit once the call has actually connected —
+    // a failed connection attempt should never cost the student a credit.
+    if (!creditDeducted) {
+      const deducted = await deductOneCredit();
+      if (deducted) {
+        creditDeducted = true;
+        currentSessionId = await createSessionRow();
+        creditsNote.textContent = `${activeSubscription.credits_remaining} interview${activeSubscription.credits_remaining === 1 ? "" : "s"} remaining on your plan.`;
+      }
+    }
+    callStatus.textContent = "Interview in progress. Speak naturally.";
+    startBtn.style.display = "none";
+    endBtn.style.display = "inline-block";
+    codePanelToggle.style.display = "block";
+
+    // Video recording is a Premium-plan feature only
+    if (activeSubscription?.subscription_plans?.interview_mode === "video_ai_avatar") {
+      startVideoRecording();
+      startBehaviorMonitoring();
+    }
+  });
+
+  let firstGreetingDone = false;
+
+  vapi.on("speech-start", () => {
+    avatarCircle.classList.add("speaking");
+  });
+  vapi.on("speech-end", () => {
+    avatarCircle.classList.remove("speaking");
+    // Start the visible countdown only after the AI's opening greeting
+    // finishes, so the timer reflects real Q&A time, not the greeting
+    if (!firstGreetingDone) {
+      firstGreetingDone = true;
+      startCallTimer();
+    }
+  });
+
+  // Live transcript, if the SDK provides message events
+  vapi.on("message", (msg) => {
+    if (msg?.type === "transcript" && msg?.transcriptType === "final") {
+      const speaker = msg.role === "assistant" ? "Interviewer" : "You";
+      addTranscriptLine(speaker, msg.transcript);
+    }
+  });
+
+  vapi.on("error", (err) => {
+    console.error("Vapi error:", err);
+    const message = err?.error?.message || err?.errorMsg || err?.message || "Unknown error";
+    callStatus.textContent = "Could not connect: " + message;
+    startBtn.style.display = "inline-block";
+    startBtn.disabled = false;
+    endBtn.style.display = "none";
+  });
+
+  vapi.on("call-end", async () => {
+    callStatus.textContent = "Interview ended. Processing your results...";
+    endBtn.style.display = "none";
+    avatarCircle.classList.remove("speaking");
+    stopCallTimer();
+    codePanelToggle.style.display = "none";
+    codePanel.style.display = "none";
+
+    // Upload video recording first (Premium plan), if one was made
+    let videoUrl = null;
+    let behaviorSummary = { flag: false, notes: null };
+    if (activeSubscription?.subscription_plans?.interview_mode === "video_ai_avatar") {
+      behaviorSummary = stopBehaviorMonitoringAndGetSummary();
+      videoUrl = await stopAndUploadVideoRecording();
+    }
+    stopWebcamPreview();
+
+    // Generate the PDF report (all plans) — downloads for the student
+    // and saves a copy for later retrieval from the dashboard.
+    const reportPath = await generateAndUploadReport();
+
+    if (currentSessionId) {
+      const updates = { status: "completed", completed_at: new Date().toISOString() };
+      if (videoUrl) updates.video_recording_url = videoUrl;
+      if (reportPath) updates.report_url = reportPath;
+      if (behaviorSummary.notes) {
+        updates.fraud_flag = behaviorSummary.flag;
+        updates.fraud_notes = behaviorSummary.notes;
+      }
+      await supabaseClient.from("interview_sessions").update(updates).eq("id", currentSessionId);
+    }
+
+    callStatus.textContent = "Interview ended. Your scoreboard will be emailed to you shortly.";
+    startBtn.style.display = activeSubscription.credits_remaining > 0 ? "inline-block" : "none";
+    startBtn.disabled = false;
+    // NOTE: actual scoring happens via Vapi.ai's Analysis Plan + a
+    // webhook (e.g. to Zapier) that emails the student. See README.
+  });
+
+  const yearLabels = { early: "an early-year student, not yet in placement season", prefinal: "a pre-final year student approaching placement season", final: "a final-year student in active placement season" };
+
+  vapi.start(VAPI_ASSISTANT_ID, {
     variableValues: {
       dream_company: dreamSelection.company_name || "",
-      dream_role: dreamSelection.role_name || ""
-    }
-  }));
+      dream_role: dreamSelection.role_name || "",
+      student_email: currentUser.email || "",
+      resume_summary: dreamSelection.resume_text || "No resume provided.",
+      candidate_year_context: yearLabels[dreamSelection.year_level] || yearLabels["final"],
+      gap_areas: dreamSelection.resume_gap_areas || "None identified — resume appears well-aligned.",
+      skill_focus: dreamSelection.skill_category || ""
+    },
+    maxDurationSeconds: MAX_CALL_SECONDS + 30 // +30s buffer covers the opening greeting, so the on-screen timer truly matches real available time
+  });
+});
 
-  // Best-effort event hooks (widget-provided callbacks)
-  widget.onVoiceStart = () => {
-    callStatus.textContent = "Interview in progress. Speak naturally.";
-    avatarCircle.classList.add("speaking");
-  };
-
-  widget.onVoiceEnd = async () => {
-    callStatus.textContent = "Interview ended. Your scoreboard will be emailed to you shortly.";
-    avatarCircle.classList.remove("speaking");
-    stopWebcamPreview();
-    await markSessionCompleted();
-  };
-
-  widget.onError = (err) => {
-    console.error("Vapi widget error:", err);
-    callStatus.textContent = "Could not connect: " + (err?.message || "Unknown error");
-  };
-
-  widgetContainer.innerHTML = "";
-  widgetContainer.appendChild(widget);
-
-  // NOW load the widget script — after the element is already in the DOM
-  const script = document.createElement("script");
-  script.src = "https://unpkg.com/@vapi-ai/client-sdk-react/dist/embed/widget.umd.js";
-  script.onload = () => {
-    callStatus.textContent = "Ready — click Start Interview below.";
-  };
-  script.onerror = () => {
-    callStatus.textContent = "Could not load the interview widget. Please refresh and try again.";
-  };
-  document.body.appendChild(script);
-}
+endBtn.addEventListener("click", () => {
+  if (vapi) vapi.stop();
+});
 
 (async () => {
   currentUser = await requireLogin();
   if (!currentUser) return;
-
   dreamSelection = await loadDreamSelection();
   activeSubscription = await loadSubscriptionCredits();
-
-  if (!dreamSelection || !activeSubscription) {
-    callStatus.textContent = "Cannot start yet — see message above.";
-    return;
+  if (activeSubscription?.subscription_plans?.max_duration_minutes) {
+    MAX_CALL_SECONDS = activeSubscription.subscription_plans.max_duration_minutes * 60;
   }
+  if (!activeSubscription) startBtn.disabled = true;
 
-  // Reserve this interview: deduct credit, log session, then show the widget
-  const deducted = await deductOneCredit();
-  if (!deducted) {
-    callStatus.textContent = "Could not reserve an interview slot. Please refresh and try again.";
-    return;
+  // Preload face detection models early (Premium only) so they're
+  // ready by the time the call actually starts
+  if (activeSubscription?.subscription_plans?.interview_mode === "video_ai_avatar") {
+    faceModelsLoaded = await loadFaceModels();
   }
-  currentSessionId = await createSessionRow();
-  creditsNote.textContent = `${activeSubscription.credits_remaining} interview${activeSubscription.credits_remaining === 1 ? "" : "s"} remaining on your plan.`;
-
-  await startWebcamPreview();
-  renderVapiWidget();
 })();
