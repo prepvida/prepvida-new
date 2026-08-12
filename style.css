@@ -511,3 +511,11 @@ button:focus-visible, .btn:focus-visible { outline: 2px solid var(--brass); outl
   .avatar-circle.speaking .pulse-ring { animation: none; }
   button, .btn, .plan-card { transition: none; }
 }
+
+.brand-logo-img {
+  height: 28px;
+  width: auto;
+  display: inline-block;
+  vertical-align: middle;
+  border-radius: 3px;
+}
