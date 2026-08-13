@@ -98,8 +98,8 @@ a { color: inherit; }
 }
 
 .brand-logo {
-  width: 32px;
-  height: 32px;
+  width: auto;
+  height: 45px;
   transform: none;
   box-shadow: none;
   display: inline-block;
