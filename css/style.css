@@ -73,7 +73,7 @@ a { color: inherit; }
 
 .site-header {
   display: flex;
-  align-items: center;
+  align-items: left corner;
   justify-content: space-between;
   padding: 1.1rem 2rem;
   background: rgba(10, 15, 28, 0.55);
