@@ -431,20 +431,23 @@ button:focus-visible, .btn:focus-visible { outline: 2px solid var(--brass); outl
 .password-container {
   position: relative;
   width: 100%;
+  display: block; 
 }
 
 .password-container input {
   width: 100%;
-  padding-right: 40px; 
+  padding-right: 45px; !important;
 }
 
 .eye-icon {
   position: absolute;
-  right: 12px;
+  right: 15px;
   top: 50%;
   transform: translateY(-50%);
   cursor: pointer;
   color: var(--brass); 
+  z-index: 10;
+   font-size: 1.2rem;
 }
 
 /* ----------- Interview stage: avatar + webcam ----------- */
