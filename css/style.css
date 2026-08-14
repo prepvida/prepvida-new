@@ -427,8 +427,27 @@ button:focus-visible, .btn:focus-visible { outline: 2px solid var(--brass); outl
   margin-bottom: 0.6rem;
 }
 
-/* ---------- Interview stage: avatar + webcam ---------- */
+/* Password visibility toggle layout */
+.password-container {
+  position: relative;
+  width: 100%;
+}
 
+.password-container input {
+  width: 100%;
+  padding-right: 40px; 
+}
+
+.eye-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  color: var(--brass); 
+}
+
+/* ----------- Interview stage: avatar + webcam ----------- */
 .interview-stage {
   display: grid;
   grid-template-columns: 1fr 1fr;
